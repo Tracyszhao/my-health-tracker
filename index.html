@@ -123,7 +123,7 @@
 
     <div class="card photo">
       <button class="btn ghost" id="pick">📷 Estimate from photo</button>
-      <input type="file" id="file" accept="image/*" capture="environment" hidden />
+      <input type="file" id="file" accept="image/*" hidden />
       <img id="pp" alt="food preview" />
       <button class="btn" id="analyze" style="display:none;margin-top:10px;">Analyze</button>
       <p>Sends one photo to the AI vision model for a macro estimate. You confirm before it logs.</p>
@@ -487,7 +487,7 @@ $('#f-search').oninput=e=>{
   $('#f-results').innerHTML='<div class="empty">Searching…</div>';
   _searchTimer=setTimeout(async()=>{
     try{
-      const r=await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=7&api_key=DEMO_KEY`);
+      const r=await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=7&api_key=wLx7wqbEnrUeoCdUHIou78pXo11iQObkdOzPy9Pi`);
       const d=await r.json();
       _searchFoods=d.foods||[];
       $('#f-results').innerHTML=_searchFoods.length
