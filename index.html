@@ -404,12 +404,34 @@ $('#s-save').onclick=()=>{
 $('#s-export').onclick=()=>{ const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='track-data.json'; a.click(); };
 
-/* photo hook — in the real build, analyze() POSTs the image to your serverless proxy,
-   which calls the vision API and returns {name,kcal,p,c,f}. For now it prefills a note. */
+/* photo → AI macro estimate ── update ANALYZE_URL after deploying worker.js to Cloudflare */
+const ANALYZE_URL='https://track-nutrition-proxy.track-health-app.workers.dev';
 $('#pick').onclick=()=>$('#file').click();
 $('#file').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
   $('#pp').src=URL.createObjectURL(f); $('#pp').style.display='block'; $('#analyze').style.display='block'; };
-$('#analyze').onclick=()=>{ alert('In the full build this sends the photo to the AI and fills the form below with the estimate. Wire analyze() to your proxy endpoint.'); };
+$('#analyze').onclick=async()=>{
+  const file=$('#file').files[0]; if(!file) return;
+  const btn=$('#analyze');
+  btn.disabled=true; btn.textContent='Analyzing…';
+  try{
+    const bmp=await createImageBitmap(file);
+    const MAX=512,scale=Math.min(1,MAX/Math.max(bmp.width,bmp.height));
+    const w=Math.round(bmp.width*scale),h=Math.round(bmp.height*scale);
+    const cv=Object.assign(document.createElement('canvas'),{width:w,height:h});
+    cv.getContext('2d').drawImage(bmp,0,0,w,h);
+    const b64=cv.toDataURL('image/jpeg',0.85).split(',')[1];
+    const res=await fetch(ANALYZE_URL,{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({image:b64,mediaType:'image/jpeg'})});
+    if(!res.ok) throw new Error('Server '+res.status);
+    const m=await res.json(); if(m.error) throw new Error(m.error);
+    $('#f-name').value=m.name||''; $('#f-k').value=Math.round(m.kcal)||'';
+    $('#f-p').value=Math.round(m.p)||''; $('#f-c').value=Math.round(m.c)||''; $('#f-f').value=Math.round(m.f)||'';
+    _baseMacros=null; $('#f-search').value=''; $('#f-results').innerHTML='';
+    $('#f-name').focus();
+  }catch(err){ alert('Analysis failed: '+err.message+'\nYou can still enter macros manually below.'); }
+  finally{ btn.disabled=false; btn.textContent='Analyze'; }
+};
 
 /* food */
 function renderChips(){
