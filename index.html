@@ -76,6 +76,7 @@
   .item:last-child{ border-bottom:none; }
   .item .sub{ color:var(--muted); font-size:13px; }
   .item .del{ background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; padding:4px 8px; }
+  .item .edit{ background:none; border:1px solid var(--line); border-radius:6px; color:var(--muted); font-size:12px; cursor:pointer; padding:3px 8px; margin-right:4px; }
   .empty{ color:var(--muted); font-size:14px; text-align:center; padding:18px 0; }
 
   .seg{ display:flex; gap:6px; margin-bottom:14px; }
@@ -153,6 +154,11 @@
         <button class="btn" id="f-add">Log it</button>
         <button class="btn ghost" id="f-save">Save</button>
       </div>
+    </div>
+
+    <div class="card" id="saved-card" style="display:none;">
+      <b style="display:block;margin-bottom:10px;">My Saved Foods</b>
+      <div id="saved-list" style="max-height:300px;overflow-y:auto;"></div>
     </div>
 
     <div class="card"><div id="f-list"></div></div>
@@ -274,6 +280,14 @@
     <button class="btn" id="s-save">Save</button>
     <button class="btn ghost" id="s-export" style="margin-top:8px;">Export my data (JSON)</button>
   </div>
+</div>
+
+<div id="saved-modal" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;padding:env(safe-area-inset-top,0) 16px 32px;">
+  <div style="display:flex;align-items:center;gap:12px;padding:16px 0 12px;position:sticky;top:0;background:var(--bg);">
+    <button id="close-saved-modal" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--ink);">←</button>
+    <b style="font-size:18px;">All Saved Foods</b>
+  </div>
+  <div id="saved-modal-list"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -437,8 +451,76 @@ $('#analyze').onclick=async()=>{
 function renderChips(){
   $('#chips').innerHTML = db.saved.map((s,i)=>`<button class="chip" data-i="${i}">${s.name} · ${s.kcal}</button>`).join('');
 }
+function renderSaved(){
+  const card=$('#saved-card');
+  if(!db.saved.length){ card.style.display='none'; return; }
+  card.style.display='';
+  const show=db.saved.slice(0,20);
+  const hasMore=db.saved.length>20;
+  $('#saved-list').innerHTML=show.map((s,i)=>
+    `<div class="item" data-log="${i}" style="cursor:pointer;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name}</div>
+        <div class="sub">${s.kcal} kcal · ${s.p}P · ${s.c}C · ${s.f}F</div>
+      </div>
+      <button class="edit" data-edit="${i}">Edit</button>
+      <button class="del" data-del="${i}">×</button>
+    </div>`
+  ).join('')
+  +(hasMore?`<div style="text-align:center;padding:10px 0;"><button class="btn ghost" id="open-saved-btn">View all ${db.saved.length} foods →</button></div>`:'');
+}
+function _savedEdit(i){
+  const s=db.saved[i];
+  $('#f-name').value=s.name; $('#f-k').value=s.kcal;
+  $('#f-p').value=s.p; $('#f-c').value=s.c; $('#f-f').value=s.f;
+  if(s.serving) $('#f-serving').value=s.serving;
+  _baseMacros=null;
+  db.saved.splice(i,1); save(); renderSaved(); renderChips();
+  $('#f-name').scrollIntoView({behavior:'smooth',block:'center'}); $('#f-name').focus();
+}
+function _savedLog(i){
+  const s=db.saved[i];
+  db.food.push({...s,date:today(),ts:Date.now()});
+  db.saved.splice(i,1); db.saved.unshift(s);
+  save(); renderSaved(); renderChips(); renderFood();
+}
+function _savedDel(i){ db.saved.splice(i,1); save(); renderSaved(); renderChips(); }
+function openSavedModal(){
+  $('#saved-modal-list').innerHTML=db.saved.map((s,i)=>
+    `<div class="item" data-mlog="${i}" style="cursor:pointer;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name}</div>
+        <div class="sub">${s.kcal} kcal · ${s.p}P · ${s.c}C · ${s.f}F</div>
+      </div>
+      <button class="edit" data-medit="${i}">Edit</button>
+      <button class="del" data-mdel="${i}">×</button>
+    </div>`
+  ).join('');
+  $('#saved-modal').style.display='block';
+}
+$('#saved-list').onclick=e=>{
+  if(e.target.closest('#open-saved-btn')){ openSavedModal(); return; }
+  const edit=e.target.closest('[data-edit]');
+  const del=e.target.closest('[data-del]');
+  const row=e.target.closest('[data-log]');
+  if(edit){ _savedEdit(+edit.dataset.edit); return; }
+  if(del){ _savedDel(+del.dataset.del); return; }
+  if(row) _savedLog(+row.dataset.log);
+};
+$('#close-saved-modal').onclick=()=>$('#saved-modal').style.display='none';
+$('#saved-modal-list').onclick=e=>{
+  const edit=e.target.closest('[data-medit]');
+  const del=e.target.closest('[data-mdel]');
+  const row=e.target.closest('[data-mlog]');
+  if(edit){ $('#saved-modal').style.display='none'; _savedEdit(+edit.dataset.medit); return; }
+  if(del){ _savedDel(+del.dataset.mdel); openSavedModal(); return; }
+  if(row){ $('#saved-modal').style.display='none'; _savedLog(+row.dataset.mlog); }
+};
 $('#chips').onclick=e=>{ const c=e.target.closest('.chip'); if(!c) return;
-  const s=db.saved[+c.dataset.i]; db.food.push({...s,date:today(),ts:Date.now()}); save(); renderFood(); };
+  const i=+c.dataset.i; const s=db.saved[i];
+  db.food.push({...s,date:today(),ts:Date.now()});
+  db.saved.splice(i,1); db.saved.unshift(s);
+  save(); renderFood(); renderChips(); renderSaved(); };
 
 function renderFood(){
   $('#kcal-goal').textContent=db.goalKcal; $('#pgoal').textContent=db.goalProtein;
@@ -487,40 +569,61 @@ $('#f-search').oninput=e=>{
   $('#f-results').innerHTML='<div class="empty">Searching…</div>';
   _searchTimer=setTimeout(async()=>{
     try{
+      const ql=q.toLowerCase();
+      const savedMatches=db.saved.map((s,i)=>({s,i})).filter(({s})=>s.name.toLowerCase().includes(ql));
+      const savedHTML=savedMatches.map(({s,i})=>
+        `<div class="item" data-type="saved" data-i="${i}">
+          <div><div style="font-size:14px">⭐ ${s.name}</div>
+          <div class="sub">${s.kcal} kcal · ${s.p}P · ${s.c}C · ${s.f}F</div></div>
+          <span style="color:var(--accent);font-size:20px;padding-left:8px">+</span></div>`
+      ).join('');
       const r=await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=7&api_key=wLx7wqbEnrUeoCdUHIou78pXo11iQObkdOzPy9Pi`);
       const d=await r.json();
       _searchFoods=d.foods||[];
-      $('#f-results').innerHTML=_searchFoods.length
-        ? _searchFoods.map((f,i)=>{
-            const k=Math.round(_nut(f.foodNutrients,1008));
-            const p=Math.round(_nut(f.foodNutrients,1003));
-            const c=Math.round(_nut(f.foodNutrients,1005));
-            const ft=Math.round(_nut(f.foodNutrients,1004));
-            return `<div class="item" data-i="${i}">
-              <div><div style="font-size:14px">${f.description}</div>
-              <div class="sub">${k} kcal · ${p}P · ${c}C · ${ft}F <span style="font-size:11px">per 100g</span></div></div>
-              <span style="color:var(--accent);font-size:20px;padding-left:8px">+</span></div>`;
-          }).join('')
+      const usdaHTML=_searchFoods.map((f,i)=>{
+        const k=Math.round(_nut(f.foodNutrients,1008));
+        const p=Math.round(_nut(f.foodNutrients,1003));
+        const c=Math.round(_nut(f.foodNutrients,1005));
+        const ft=Math.round(_nut(f.foodNutrients,1004));
+        return `<div class="item" data-type="usda" data-i="${i}">
+          <div><div style="font-size:14px">${f.description}</div>
+          <div class="sub">${k} kcal · ${p}P · ${c}C · ${ft}F <span style="font-size:11px">per 100g</span></div></div>
+          <span style="color:var(--accent);font-size:20px;padding-left:8px">+</span></div>`;
+      }).join('');
+      $('#f-results').innerHTML = savedHTML || usdaHTML
+        ? savedHTML + usdaHTML
         : '<div class="empty">No results found.</div>';
     }catch{ $('#f-results').innerHTML='<div class="empty">Search unavailable — check connection.</div>'; }
   },420);
 };
 $('#f-results').onclick=e=>{
   const item=e.target.closest('[data-i]'); if(!item) return;
-  const f=_searchFoods[+item.dataset.i];
-  _baseMacros={k:_nut(f.foodNutrients,1008),p:_nut(f.foodNutrients,1003),
-               c:_nut(f.foodNutrients,1005),f:_nut(f.foodNutrients,1004)};
-  $('#f-name').value=f.description;
-  $('#f-serving').value=100;
-  _applyServing(100);
+  if(item.dataset.type==='saved'){
+    const s=db.saved[+item.dataset.i];
+    $('#f-name').value=s.name; $('#f-k').value=s.kcal;
+    $('#f-p').value=s.p; $('#f-c').value=s.c; $('#f-f').value=s.f;
+    if(s.serving) $('#f-serving').value=s.serving;
+    _baseMacros=null;
+  } else {
+    const f=_searchFoods[+item.dataset.i];
+    _baseMacros={k:_nut(f.foodNutrients,1008),p:_nut(f.foodNutrients,1003),
+                 c:_nut(f.foodNutrients,1005),f:_nut(f.foodNutrients,1004)};
+    $('#f-name').value=f.description;
+    $('#f-serving').value=100;
+    _applyServing(100);
+  }
   $('#f-search').value=''; $('#f-results').innerHTML='';
 };
 $('#f-serving').oninput=e=>_applyServing(parseFloat(e.target.value));
 $('#f-name').oninput=()=>{ _baseMacros=null; };
 
 $('#f-add').onclick=()=>{ const f=readFood(); if(!f) return; db.food.push({...f,date:today(),ts:Date.now()}); save(); clearFood(); renderFood(); };
-$('#f-save').onclick=()=>{ const f=readFood(); if(!f) return; db.saved.push(f);
-  db.food.push({...f,date:today(),ts:Date.now()}); save(); clearFood(); renderChips(); renderFood(); };
+$('#f-save').onclick=()=>{
+  const f=readFood(); if(!f) return;
+  db.saved.unshift(f); save(); clearFood(); renderChips(); renderSaved();
+  const btn=$('#f-save'); btn.textContent='Saved!';
+  setTimeout(()=>btn.textContent='Save',1500);
+};
 
 /* weight */
 function renderWeight(){
@@ -578,7 +681,7 @@ function drawChart(){
       x:{grid:{display:false}} }, maintainAspectRatio:false } });
 }
 
-renderChips(); renderFood(); renderWeight(); renderBody();
+renderChips(); renderSaved(); renderFood(); renderWeight(); renderBody();
 
 /* register service worker so the app works offline once installed */
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }

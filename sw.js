@@ -1,5 +1,5 @@
 /* Minimal offline cache. Bump CACHE when you change files so users get updates. */
-const CACHE = 'track-v4';
+const CACHE = 'track-v9';
 const ASSETS = [
   './',
   './index.html',
