@@ -112,8 +112,8 @@
   <!-- FOOD -->
   <section class="panel active" id="p-food">
     <div class="card summary">
-      <div class="big" id="kcal-remaining">0</div>
-      <div class="lbl">calories left · <span id="kcal-used">0</span> of <span id="kcal-goal">2000</span></div>
+      <div class="big" id="kcal-used">0</div>
+      <div class="lbl">calories eaten · <span id="kcal-remaining">0</span> left of <span id="kcal-goal">2000</span></div>
       <div class="bar"><i id="kcal-bar"></i></div>
       <div class="macros">
         <div>Protein <b id="mp">0</b>/<span id="pgoal">140</span>g</div>
@@ -126,7 +126,8 @@
       <button class="btn ghost" id="pick">📷 Estimate from photo</button>
       <input type="file" id="file" accept="image/*" hidden />
       <img id="pp" alt="food preview" />
-      <button class="btn" id="analyze" style="display:none;margin-top:10px;">Analyze</button>
+      <input id="photo-desc" placeholder="Optional: describe the food or portion…" style="display:none;margin-top:10px;" />
+      <button class="btn" id="analyze" style="display:none;margin-top:8px;">Analyze</button>
       <p>Sends one photo to the AI vision model for a macro estimate. You confirm before it logs.</p>
     </div>
 
@@ -437,7 +438,8 @@ $('#s-export').onclick=()=>{ const blob=new Blob([JSON.stringify(db,null,2)],{ty
 const ANALYZE_URL='https://track-nutrition-proxy.track-health-app.workers.dev';
 $('#pick').onclick=()=>$('#file').click();
 $('#file').onchange=e=>{ const f=e.target.files[0]; if(!f) return;
-  $('#pp').src=URL.createObjectURL(f); $('#pp').style.display='block'; $('#analyze').style.display='block'; };
+  $('#pp').src=URL.createObjectURL(f); $('#pp').style.display='block';
+  $('#photo-desc').style.display=''; $('#analyze').style.display='block'; };
 $('#analyze').onclick=async()=>{
   const file=$('#file').files[0]; if(!file) return;
   const btn=$('#analyze');
@@ -451,7 +453,7 @@ $('#analyze').onclick=async()=>{
     const b64=cv.toDataURL('image/jpeg',0.85).split(',')[1];
     const res=await fetch(ANALYZE_URL,{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({image:b64,mediaType:'image/jpeg'})});
+      body:JSON.stringify({image:b64,mediaType:'image/jpeg',description:$('#photo-desc').value.trim()||null})});
     if(!res.ok) throw new Error('Server '+res.status);
     const m=await res.json(); if(m.error) throw new Error(m.error);
     $('#f-name').value=m.name||''; $('#f-k').value=Math.round(m.kcal)||'';
@@ -542,9 +544,9 @@ function renderFood(){
   const t = db.food.filter(e=>e.date===today())
     .reduce((a,e)=>({k:a.k+(e.kcal||0),p:a.p+(e.p||0),c:a.c+(e.c||0),f:a.f+(e.f||0)}),{k:0,p:0,c:0,f:0});
   const rem=db.goalKcal-t.k;
+  $('#kcal-used').textContent=Math.round(t.k).toLocaleString();
   $('#kcal-remaining').textContent=Math.round(rem).toLocaleString();
   $('#kcal-remaining').style.color = rem<0?'var(--over)':'var(--ink)';
-  $('#kcal-used').textContent=Math.round(t.k);
   const bar=$('#kcal-bar'); bar.style.width=Math.min(100,t.k/db.goalKcal*100)+'%';
   bar.style.background = t.k>db.goalKcal?'var(--over)':'var(--accent)';
   $('#mp').textContent=Math.round(t.p); $('#mc').textContent=Math.round(t.c); $('#mf').textContent=Math.round(t.f);
@@ -565,6 +567,7 @@ function clearFood(){
   _baseMacros=null; $('#f-search').value=''; $('#f-results').innerHTML='';
   $('#f-portion').innerHTML=''; $('#f-portion').style.display='none';
   const pp=$('#pp'); if(pp.src){ URL.revokeObjectURL(pp.src); pp.src=''; pp.style.display='none'; }
+  $('#photo-desc').value=''; $('#photo-desc').style.display='none';
   $('#analyze').style.display='none'; $('#file').value='';
 }
 /* food search — USDA FoodData Central (DEMO_KEY: 30 req/hr; get a free key at fdc.nal.usda.gov) */

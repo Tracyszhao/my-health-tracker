@@ -27,7 +27,7 @@ export default {
     try { body = await request.json(); }
     catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }); }
 
-    const { image, mediaType = 'image/jpeg' } = body;
+    const { image, mediaType = 'image/jpeg', description = '' } = body;
     if (!image) return new Response(JSON.stringify({ error: 'Missing image field' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
 
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -49,7 +49,7 @@ export default {
             },
             {
               type: 'text',
-              text: 'You are a nutrition estimator. Look at this food photo and return ONLY a JSON object with keys: name (short string), kcal, p, c, f (numbers, grams for macros). Estimate the portion shown. No prose, no markdown, JSON only.',
+              text: `You are a nutrition estimator. Look at this food photo and return ONLY a JSON object with keys: name (short string), kcal, p, c, f (numbers, grams for macros). Estimate the portion shown.${description ? ` The user describes it as: "${description}".` : ''} No prose, no markdown, JSON only.`,
             },
           ],
         }],
