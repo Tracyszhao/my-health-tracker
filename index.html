@@ -289,6 +289,20 @@
   </div>
 </div>
 
+<div id="export-modal" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;padding:env(safe-area-inset-top,0) 16px 32px;">
+  <div style="display:flex;align-items:center;gap:12px;padding:16px 0 12px;position:sticky;top:0;background:var(--bg);">
+    <button id="close-export-modal" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--ink);">←</button>
+    <b style="font-size:18px;">Export Data</b>
+  </div>
+  <p style="color:var(--muted);font-size:14px;margin:0 0 12px;">Choose which food days to include. Weight, body, and goals are always exported.</p>
+  <div style="display:flex;gap:8px;margin-bottom:12px;">
+    <button class="btn ghost" id="export-sel-all" style="flex:1;padding:8px;">Select all</button>
+    <button class="btn ghost" id="export-desel-all" style="flex:1;padding:8px;">Deselect all</button>
+  </div>
+  <div id="export-date-list" style="margin-bottom:16px;"></div>
+  <button class="btn" id="export-confirm">Export JSON</button>
+</div>
+
 <div id="hist-modal" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;padding:env(safe-area-inset-top,0) 16px 32px;">
   <div style="display:flex;align-items:center;gap:12px;padding:16px 0 12px;position:sticky;top:0;background:var(--bg);">
     <button id="close-hist-modal" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--ink);">←</button>
@@ -431,8 +445,30 @@ $('#s-save').onclick=()=>{
   db.goalProtein=numv('#s-prot')||140;
   save(); renderFood(); $('#sheet').classList.remove('open');
 };
-$('#s-export').onclick=()=>{ const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='track-data.json'; a.click(); };
+function openExportModal(){
+  const dates=[...new Set(db.food.map(e=>e.date))].sort().reverse();
+  $('#export-date-list').innerHTML=dates.length
+    ? dates.map(d=>{
+        const label=new Date(d+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+        return `<label style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+          <input type="checkbox" data-export-date="${d}" checked style="width:18px;height:18px;accent-color:var(--accent);" />
+          <span style="font-size:14px;">${label}</span>
+        </label>`;
+      }).join('')
+    : '<div class="empty">No food logged yet.</div>';
+  $('#export-modal').style.display='block';
+}
+$('#s-export').onclick=openExportModal;
+$('#close-export-modal').onclick=()=>$('#export-modal').style.display='none';
+$('#export-sel-all').onclick=()=>document.querySelectorAll('[data-export-date]').forEach(c=>c.checked=true);
+$('#export-desel-all').onclick=()=>document.querySelectorAll('[data-export-date]').forEach(c=>c.checked=false);
+$('#export-confirm').onclick=()=>{
+  const sel=new Set([...document.querySelectorAll('[data-export-date]:checked')].map(c=>c.dataset.exportDate));
+  const out={...db,food:db.food.filter(e=>sel.has(e.date))};
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='track-data.json'; a.click();
+  $('#export-modal').style.display='none';
+};
 
 /* photo → AI macro estimate ── update ANALYZE_URL after deploying worker.js to Cloudflare */
 const ANALYZE_URL='https://track-nutrition-proxy.track-health-app.workers.dev';
@@ -711,16 +747,25 @@ function renderHistory(){
         const r=byDate[d];
         const label=new Date(d+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
         return `<div class="item" data-date="${d}" style="cursor:pointer;">
-          <div>
+          <div style="flex:1;min-width:0;">
             <div style="font-weight:600;">${label}</div>
             <div class="sub">${Math.round(r.k)} kcal · ${Math.round(r.p)}P · ${Math.round(r.c)}C · ${Math.round(r.f)}F</div>
           </div>
+          <button class="del" data-deldate="${d}" style="font-size:16px;margin-right:4px;" title="Delete day">×</button>
           <span style="color:var(--muted);font-size:20px;">›</span>
         </div>`;
       }).join('')
     : '<div class="empty">No food logged yet.</div>';
 }
 $('#hist-list').onclick=e=>{
+  const del=e.target.closest('[data-deldate]');
+  if(del){
+    const date=del.dataset.deldate;
+    const label=new Date(date+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+    if(!confirm(`Delete all food logged on ${label}? This cannot be undone.`)) return;
+    db.food=db.food.filter(e=>e.date!==date); save(); renderHistory(); renderFood();
+    return;
+  }
   const row=e.target.closest('[data-date]'); if(!row) return;
   const date=row.dataset.date;
   const items=db.food.filter(e=>e.date===date);
