@@ -533,9 +533,21 @@ function _savedEdit(i){
 }
 function _savedLog(i){
   const s=db.saved[i];
-  db.food.push({...s,date:today(),ts:Date.now()});
+  $('#f-name').value=s.name;
+  $('#f-portion').innerHTML=''; $('#f-portion').style.display='none';
+  if(s.serving){
+    const scale=100/s.serving;
+    _baseMacros={k:(s.kcal||0)*scale,p:(s.p||0)*scale,c:(s.c||0)*scale,f:(s.f||0)*scale};
+    $('#f-serving').value=s.serving; _applyServing(s.serving);
+  } else {
+    _baseMacros=null;
+    $('#f-k').value=s.kcal||''; $('#f-p').value=s.p||'';
+    $('#f-c').value=s.c||''; $('#f-f').value=s.f||'';
+    $('#f-serving').value='';
+  }
   db.saved.splice(i,1); db.saved.unshift(s);
-  save(); renderSaved(); renderChips(); renderFood();
+  save(); renderSaved(); renderChips();
+  $('#f-name').scrollIntoView({behavior:'smooth',block:'center'}); $('#f-name').focus();
 }
 function _savedDel(i){ db.saved.splice(i,1); save(); renderSaved(); renderChips(); }
 function openSavedModal(){
@@ -597,7 +609,8 @@ $('#f-list').onclick=e=>{ const d=e.target.closest('.del'); if(!d) return;
   db.food=db.food.filter(x=>x.ts!=d.dataset.ts); save(); renderFood(); };
 
 function readFood(){ const name=$('#f-name').value.trim(); if(!name) return null;
-  return {name,kcal:numv('#f-k'),p:numv('#f-p'),c:numv('#f-c'),f:numv('#f-f')}; }
+  const serving=numv('#f-serving');
+  return {name,kcal:numv('#f-k'),p:numv('#f-p'),c:numv('#f-c'),f:numv('#f-f'),...(serving?{serving}:{})}; }
 function clearFood(){
   ['#f-name','#f-k','#f-p','#f-c','#f-f','#f-serving'].forEach(s=>$(s).value='');
   _baseMacros=null; $('#f-search').value=''; $('#f-results').innerHTML='';
