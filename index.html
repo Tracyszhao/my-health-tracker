@@ -481,12 +481,17 @@ $('#analyze').onclick=async()=>{
   const btn=$('#analyze');
   btn.disabled=true; btn.textContent='Analyzing…';
   try{
-    const bmp=await createImageBitmap(file);
-    const MAX=512,scale=Math.min(1,MAX/Math.max(bmp.width,bmp.height));
-    const w=Math.round(bmp.width*scale),h=Math.round(bmp.height*scale);
+    /* Use Image element for reliable decoding across formats including HEIC (iPhone default) */
+    const objUrl=URL.createObjectURL(file);
+    const img=new Image();
+    await new Promise((res,rej)=>{ img.onload=res; img.onerror=()=>rej(new Error('Could not load image')); img.src=objUrl; });
+    URL.revokeObjectURL(objUrl);
+    const MAX=512,scale=Math.min(1,MAX/Math.max(img.naturalWidth||1,img.naturalHeight||1));
+    const w=Math.round(img.naturalWidth*scale)||1,h=Math.round(img.naturalHeight*scale)||1;
     const cv=Object.assign(document.createElement('canvas'),{width:w,height:h});
-    cv.getContext('2d').drawImage(bmp,0,0,w,h);
-    const b64=cv.toDataURL('image/jpeg',0.85).split(',')[1];
+    cv.getContext('2d').drawImage(img,0,0,w,h);
+    const b64=cv.toDataURL('image/jpeg',0.85).split(',')[1].replace(/\s/g,'');
+    if(!b64) throw new Error('Could not encode image');
     const res=await fetch(ANALYZE_URL,{method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({image:b64,mediaType:'image/jpeg',description:$('#photo-desc').value.trim()||null})});
