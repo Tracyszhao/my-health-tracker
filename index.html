@@ -51,10 +51,11 @@
   .macros{ display:flex; justify-content:space-around; font-size:13px; color:var(--muted); }
   .macros b{ color:var(--ink); font-weight:600; }
 
-  input,button.btn,select{ font:inherit; }
-  input{ width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px;
+  input,button.btn,select,textarea{ font:inherit; }
+  input,textarea{ width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px;
          background:var(--surface); color:var(--ink); }
-  input:focus{ outline:2px solid var(--accent); outline-offset:1px; border-color:transparent; }
+  textarea{ min-height:92px; resize:vertical; }
+  input:focus,textarea:focus{ outline:2px solid var(--accent); outline-offset:1px; border-color:transparent; }
   select{ width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px;
           background:var(--surface); color:var(--ink); -webkit-appearance:none; appearance:none; }
   select:focus{ outline:2px solid var(--accent); outline-offset:1px; border-color:transparent; }
@@ -99,6 +100,40 @@
   .search-results{ max-height:240px; overflow-y:auto; margin-bottom:2px; }
   .search-results .item{ cursor:pointer; }
   .search-results .item:active{ background:var(--accent-soft); border-radius:8px; margin:0 -4px; padding-left:4px; padding-right:4px; }
+  .page-head{ margin:4px 2px 14px; }
+  .page-head h2{ font-size:24px; margin:0; font-weight:650; letter-spacing:0; }
+  .page-head p{ color:var(--muted); font-size:13px; margin:2px 0 0; }
+  .habit-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .habit{ min-height:76px; border:1px solid var(--line); border-radius:10px; background:var(--surface);
+    color:var(--muted); font-weight:600; cursor:pointer; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:5px; }
+  .habit span{ font-size:21px; }
+  .habit.active{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
+  .metric-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .metric{ padding:12px; border:1px solid var(--line); border-radius:8px; min-width:0; }
+  .metric b{ display:block; font-size:20px; line-height:1.2; }
+  .metric span{ color:var(--muted); font-size:12px; }
+  .progress-line{ display:flex; justify-content:space-between; gap:12px; font-size:14px; margin-bottom:5px; }
+  .progress-line b{ white-space:nowrap; }
+  .compact-title{ font-size:16px; margin:0 0 12px; }
+  .form-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .span-2{ grid-column:1 / -1; }
+  .checkin{ border-top:1px solid var(--line); padding-top:12px; margin-top:12px; }
+  .status{ color:var(--accent); font-size:12px; min-height:18px; text-align:right; margin-top:4px; }
+  .commit-banner{ background:var(--accent-soft); color:var(--accent); border-radius:8px; padding:10px 12px;
+    font-size:13px; font-weight:600; margin-bottom:14px; }
+  .detail-list{ display:grid; gap:10px; }
+  .detail-row{ display:flex; justify-content:space-between; gap:14px; padding-bottom:9px; border-bottom:1px solid var(--line); font-size:14px; }
+  .detail-row:last-child{ border-bottom:none; padding-bottom:0; }
+  .detail-row span{ color:var(--muted); }
+  .detail-row b{ text-align:right; }
+  .full-page{ display:none; position:fixed; inset:0; z-index:210; overflow-y:auto; background:var(--bg);
+    padding:env(safe-area-inset-top,0) 16px calc(32px + env(safe-area-inset-bottom)); }
+  .full-page.open{ display:block; }
+  .full-page-inner{ max-width:560px; margin-inline:auto; }
+  .full-page-head{ display:flex; align-items:center; gap:12px; padding:16px 0 12px; position:sticky; top:0; background:var(--bg); z-index:2; }
+  .icon-btn{ width:40px; height:40px; border:none; background:transparent; color:var(--ink); font-size:22px; cursor:pointer; }
+  @media (max-width:380px){ .form-grid{ grid-template-columns:1fr; } .span-2{ grid-column:auto; } }
 </style>
 </head>
 <body>
@@ -109,8 +144,62 @@
 </header>
 
 <main>
+  <!-- TODAY -->
+  <section class="panel active" id="p-today">
+    <div class="page-head">
+      <h2 id="today-date">Today</h2>
+      <p id="today-sprint">No active sprint</p>
+    </div>
+    <div class="card">
+      <div class="progress-line"><span>Calories</span><b><span id="today-kcal">0</span> / <span id="today-kcal-goal">2000</span></b></div>
+      <div class="bar"><i id="today-kcal-bar"></i></div>
+      <div class="progress-line"><span>Protein</span><b><span id="today-protein">0</span> / <span id="today-protein-goal">140</span>g</b></div>
+      <div class="bar"><i id="today-protein-bar"></i></div>
+      <div class="macros" style="margin:12px 0 14px;">
+        <div>Carbs <b id="today-carbs">0</b>g</div>
+        <div>Fat <b id="today-fat">0</b>g</div>
+      </div>
+      <button class="btn" id="today-log-food">Log Food &#8594;</button>
+    </div>
+
+    <div class="card">
+      <h3 class="compact-title">Daily habits</h3>
+      <div class="habit-grid" id="habit-grid">
+        <button class="habit" data-habit="posture"><span>&#10003;</span>Posture</button>
+        <button class="habit" data-habit="core"><span>&#10003;</span>Core</button>
+        <button class="habit" data-habit="strength"><span>&#10003;</span>Strength</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="compact-title">Cardio</h3>
+      <div class="row">
+        <input id="d-cardio-minutes" type="number" inputmode="numeric" min="0" placeholder="Minutes" />
+        <select id="d-cardio-type">
+          <option value="">Type</option><option>Running</option><option>Walking</option>
+          <option>Elliptical</option><option>Cycling</option><option>Swimming</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="compact-title">Movement &amp; recovery</h3>
+      <div class="form-grid">
+        <div class="field" style="margin:0"><label>Steps</label><input id="d-steps" type="number" inputmode="numeric" min="0" placeholder="0" /></div>
+        <div class="field" style="margin:0"><label>Sleep (hours)</label><input id="d-sleep" type="number" inputmode="decimal" min="0" max="24" step="0.1" placeholder="0" /></div>
+        <div class="field span-2" style="margin:0"><label>Weight (kg)</label><input id="d-weight" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0.0" /></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="compact-title">Notes</h3>
+      <textarea id="d-notes" placeholder="How did today feel?"></textarea>
+      <div class="status" id="daily-save-status"></div>
+    </div>
+  </section>
+
   <!-- FOOD -->
-  <section class="panel active" id="p-food">
+  <section class="panel" id="p-food">
     <div class="card summary">
       <div class="big" id="kcal-used">0</div>
       <div class="lbl">calories eaten · <span id="kcal-remaining">0</span> left of <span id="kcal-goal">2000</span></div>
@@ -166,63 +255,120 @@
     <div class="card"><div id="f-list"></div></div>
   </section>
 
-  <!-- WEIGHT -->
-  <section class="panel" id="p-weight">
-    <div class="card">
-      <div class="row">
-        <input id="w-val" type="number" inputmode="decimal" step="0.1" placeholder="Weight" />
-        <button class="btn" id="w-add" style="flex:0 0 90px;">Log</button>
-      </div>
+  <!-- PROGRESS -->
+  <section class="panel" id="p-progress">
+    <div class="page-head"><h2>Progress</h2><p id="progress-period">Current sprint</p></div>
+    <div class="card"><div class="metric-grid" id="sprint-metrics"></div></div>
+    <div class="seg" id="seg">
+      <button data-m="weight" class="active">Weight</button>
+      <button data-m="calories">Calories</button>
+      <button data-m="protein">Protein</button>
+      <button data-m="steps">Steps</button>
+      <button data-m="sleep">Sleep</button>
     </div>
-    <div class="card"><div id="w-list"></div></div>
-  </section>
-
-  <!-- BODY -->
-  <section class="panel" id="p-body">
+    <div class="card"><canvas id="chart" height="220"></canvas>
+      <div class="empty" id="chart-empty">Log a few entries to see trends.</div>
+    </div>
     <div class="card">
-      <div class="row" style="margin-bottom:8px;">
-        <input id="b-waist" type="number" inputmode="decimal" step="0.1" placeholder="Waist" />
-        <input id="b-hip" type="number" inputmode="decimal" step="0.1" placeholder="Hips" />
-      </div>
-      <div class="row" style="margin-bottom:8px;">
-        <input id="b-arm" type="number" inputmode="decimal" step="0.1" placeholder="Arm" />
-        <input id="b-thigh" type="number" inputmode="decimal" step="0.1" placeholder="Thigh" />
-      </div>
-      <div class="row" style="margin-bottom:12px;">
+      <h3 class="compact-title">Measurement checkpoint</h3>
+      <div class="form-grid" style="margin-bottom:12px;">
         <input id="b-bf" type="number" inputmode="decimal" step="0.1" placeholder="Body fat %" />
-        <div></div>
+        <input id="b-waist" type="number" inputmode="decimal" step="0.1" placeholder="Waist - narrowest" />
+        <input id="b-navel" type="number" inputmode="decimal" step="0.1" placeholder="Waist - navel" />
+        <input id="b-hip" type="number" inputmode="decimal" step="0.1" placeholder="Hips" />
+        <input id="b-chest" type="number" inputmode="decimal" step="0.1" placeholder="Chest" />
+        <input id="b-left-arm" type="number" inputmode="decimal" step="0.1" placeholder="Left arm" />
+        <input id="b-right-arm" type="number" inputmode="decimal" step="0.1" placeholder="Right arm" />
+        <input id="b-left-thigh" type="number" inputmode="decimal" step="0.1" placeholder="Left thigh" />
+        <input id="b-right-thigh" type="number" inputmode="decimal" step="0.1" placeholder="Right thigh" />
       </div>
       <button class="btn" id="b-add">Save measurements</button>
     </div>
     <div class="card"><div id="b-list"></div></div>
   </section>
 
-  <!-- TRENDS -->
-  <section class="panel" id="p-trends">
-    <div class="seg" id="seg">
-      <button data-m="weight" class="active">Weight</button>
-      <button data-m="calories">Calories</button>
-      <button data-m="protein">Protein</button>
-      <button data-m="waist">Waist</button>
-      <button data-m="bf">BF %</button>
+  <!-- PLAN -->
+  <section class="panel" id="p-plan">
+    <div class="page-head"><h2>Plan</h2><p>Commit to a focused period and follow it through.</p></div>
+    <div class="card" id="plan-empty">
+      <div class="empty" style="padding:8px 0 18px;">No sprint is currently running.</div>
+      <button class="btn" id="start-sprint">Start a sprint</button>
     </div>
-    <div class="card"><canvas id="chart" height="220"></canvas>
-      <div class="empty" id="chart-empty">Log a few entries to see trends.</div>
+    <div class="card" id="plan-current" style="display:none;"></div>
+
+    <div class="card" id="weekly-card" style="display:none;">
+      <h3 class="compact-title">Weekly check-in</h3>
+      <div class="metric-grid" id="weekly-metrics"></div>
+      <div class="checkin">
+        <div class="field"><label>Biggest hidden calorie source?</label><textarea id="ci-hidden"></textarea></div>
+        <div class="field"><label>What felt easy?</label><textarea id="ci-easy"></textarea></div>
+        <div class="field"><label>What felt hard?</label><textarea id="ci-hard"></textarea></div>
+        <div class="field"><label>One adjustment for next week?</label><textarea id="ci-adjust"></textarea></div>
+        <button class="btn" id="ci-save">Save check-in</button>
+      </div>
     </div>
+    <div class="card"><h3 class="compact-title">Previous sprints &amp; check-ins</h3><div id="plan-archive"></div></div>
   </section>
 
   <section class="panel" id="p-history">
-    <div class="card" id="hist-list"><div class="empty">No food logged yet.</div></div>
+    <div class="page-head"><h2>History</h2><p>Nutrition, habits, recovery, and notes by day.</p></div>
+    <div class="card" id="hist-list"><div class="empty">No entries yet.</div></div>
   </section>
 </main>
 
 <nav id="nav">
-  <button data-p="food" class="active"><span>🍳</span>Food</button>
-  <button data-p="weight"><span>⚖️</span>Weight</button>
-  <button data-p="body"><span>📏</span>Body</button>
-  <button data-p="trends"><span>📈</span>Trends</button>
-  <button data-p="history"><span>📅</span>History</button>
+  <button data-p="today" class="active"><span>&#9673;</span>Today</button>
+  <button data-p="food"><span>&#9825;</span>Food</button>
+  <button data-p="progress"><span>&#8599;</span>Progress</button>
+  <button data-p="plan"><span>&#9776;</span>Plan</button>
+  <button data-p="history"><span>&#9635;</span>History</button>
 </nav>
+
+<!-- SPRINT BUILDER -->
+<div class="full-page" id="sprint-modal">
+  <div class="full-page-inner">
+    <div class="full-page-head">
+      <button class="icon-btn" id="close-sprint-modal" aria-label="Close sprint builder">&#8592;</button>
+      <b id="sprint-modal-title" style="font-size:18px;">Build your sprint</b>
+    </div>
+    <div id="sprint-form-view">
+      <div class="card">
+        <h3 class="compact-title">Sprint details</h3>
+      <div class="form-grid">
+        <input id="sp-name" class="span-2" placeholder="Sprint name or number" />
+        <div class="field" style="margin:0"><label>Start date</label><input id="sp-start" type="date" /></div>
+        <div class="field" style="margin:0"><label>End date</label><input id="sp-end" type="date" /></div>
+        <input id="sp-theme" class="span-2" placeholder="Theme or focus (optional)" />
+      </div>
+      <div class="section-title">Targets</div>
+      <div class="form-grid">
+        <input id="sp-cal-average" type="number" inputmode="numeric" placeholder="Average calories" />
+        <input id="sp-protein" type="number" inputmode="numeric" placeholder="Protein min (g)" />
+        <input id="sp-step" type="number" inputmode="numeric" placeholder="Daily steps" />
+        <input id="sp-fat-average" type="number" inputmode="numeric" placeholder="Average fat (g)" />
+        <input id="sp-strength" type="number" inputmode="numeric" placeholder="Strength sessions" />
+        <input id="sp-cardio-sessions" type="number" inputmode="numeric" placeholder="Cardio sessions" />
+        <input id="sp-cardio-minutes" type="number" inputmode="numeric" placeholder="Cardio min/session" />
+        <input id="sp-posture" type="number" inputmode="numeric" placeholder="Posture days" />
+        <input id="sp-core" type="number" inputmode="numeric" placeholder="Core days" />
+        <input id="sp-sleep-average" type="number" inputmode="decimal" step="0.1" placeholder="Average sleep (hours)" />
+      </div>
+        <button class="btn" id="sp-save" style="margin-top:12px;">Save &amp; review</button>
+      <div class="status" id="sprint-save-status"></div>
+      </div>
+    </div>
+    <div id="sprint-review-view" style="display:none;">
+      <div class="card">
+        <div class="commit-banner">Review your targets carefully. Committing means this sprint becomes your active plan.</div>
+        <div id="sprint-review"></div>
+        <div class="row" style="margin-top:16px;">
+          <button class="btn ghost" id="sp-review-back">Back</button>
+          <button class="btn" id="sp-commit">Commit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- SETTINGS SHEET -->
 <div class="sheet" id="sheet">
@@ -294,7 +440,7 @@
     <button id="close-export-modal" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--ink);">←</button>
     <b style="font-size:18px;">Export Data</b>
   </div>
-  <p style="color:var(--muted);font-size:14px;margin:0 0 12px;">Choose which food days to include. Weight, body, and goals are always exported.</p>
+  <p style="color:var(--muted);font-size:14px;margin:0 0 12px;">Choose which food days to include. Daily logs, measurements, sprints, check-ins, and settings are always exported.</p>
   <div style="display:flex;gap:8px;margin-bottom:12px;">
     <button class="btn ghost" id="export-sel-all" style="flex:1;padding:8px;">Select all</button>
     <button class="btn ghost" id="export-desel-all" style="flex:1;padding:8px;">Deselect all</button>
@@ -321,20 +467,83 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-/* ---------- persistence: this is the real difference from the prototype ----------
-   All data is saved to localStorage under one key, so it survives closing the app.
-   When you scale up, swap these two functions for IndexedDB — nothing else changes. */
+/* IndexedDB is the active store. track.v1 remains a read-only migration source. */
 const KEY = 'track.v1';
+const IDB_NAME = 'track-db';
+const IDB_STORE = 'app';
 const defaults = { goalKcal:2000, goalProtein:140,
   profile:{ goal:'loss', sex:'f', age:null, heightCm:null, weightKg:null, bodyFatPct:null, activity:1.55 },
   saved:[ {name:'Oatmeal',kcal:150,p:5,c:27,f:3},
           {name:'Chicken 150g',kcal:248,p:46,c:0,f:5},
           {name:'Greek yogurt',kcal:100,p:17,c:6,f:0} ],
-  food:[], weight:[], body:[] };
-function load(){ try{ const s=JSON.parse(localStorage.getItem(KEY)||'{}');
-  return {...defaults,...s,profile:{...defaults.profile,...(s.profile||{})}}; }catch{ return {...defaults}; } }
-function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
-let db = load();
+  food:[], weight:[], body:[], dailyLogs:{}, measurements:[], sprints:[], checkIns:[] };
+function cloneDefaults(){ return JSON.parse(JSON.stringify(defaults)); }
+function dateKeyFromTs(ts){ return new Date(ts).toLocaleDateString('en-CA',{timeZone:'America/New_York'}); }
+function normalizeDb(raw={}){
+  const next={...cloneDefaults(),...raw,profile:{...defaults.profile,...(raw.profile||{})}};
+  next.food=Array.isArray(next.food)?next.food:[];
+  next.saved=Array.isArray(next.saved)?next.saved:[];
+  next.weight=Array.isArray(next.weight)?next.weight:[];
+  next.body=Array.isArray(next.body)?next.body:[];
+  next.dailyLogs=next.dailyLogs&&typeof next.dailyLogs==='object'?next.dailyLogs:{};
+  next.measurements=Array.isArray(next.measurements)&&next.measurements.length
+    ? next.measurements : next.body.map(e=>({...e}));
+  next.sprints=Array.isArray(next.sprints)?next.sprints:[];
+  next.checkIns=Array.isArray(next.checkIns)?next.checkIns:[];
+  next.weight.forEach(e=>{
+    const date=e.date||dateKeyFromTs(e.ts);
+    if(next.dailyLogs[date]?.weightKg==null) next.dailyLogs[date]={...(next.dailyLogs[date]||{}),weightKg:e.val};
+  });
+  return next;
+}
+function loadLegacy(){ try{ return normalizeDb(JSON.parse(localStorage.getItem(KEY)||'{}')); }
+  catch{ return cloneDefaults(); } }
+function openTrackDb(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=()=>req.result.createObjectStore(IDB_STORE);
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+let idb=null;
+function idbGet(){ return new Promise((resolve,reject)=>{
+  const req=idb.transaction(IDB_STORE).objectStore(IDB_STORE).get('state');
+  req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);
+}); }
+function idbPut(value){ return new Promise((resolve,reject)=>{
+  const tx=idb.transaction(IDB_STORE,'readwrite');
+  tx.objectStore(IDB_STORE).put(value,'state');
+  tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
+}); }
+let db=loadLegacy();
+let saveTimer;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{
+    if(idb) idbPut(db).catch(console.error);
+    else localStorage.setItem(KEY,JSON.stringify(db));
+  },80);
+}
+async function initStorage(){
+  try{
+    idb=await openTrackDb();
+    const stored=await idbGet();
+    db=stored?normalizeDb(stored):normalizeDb(db);
+    if(!stored){ await idbPut(db); localStorage.setItem(KEY+'.migrated',new Date().toISOString()); }
+    if(new URLSearchParams(location.search).get('cleanup')==='codex-test-20260822'){
+      db.food=db.food.filter(e=>!(e.date==='2026-08-22'&&e.name==='Test meal'&&e.kcal===500&&e.p===40&&e.c===50&&e.f===15));
+      const testLog=db.dailyLogs['2026-08-22'];
+      if(testLog&&testLog.posture===true&&testLog.steps===6243&&testLog.sleepHours===7.5&&testLog.weightKg===62.3&&testLog.notes==='Good consistency day.'){
+        delete db.dailyLogs['2026-08-22'];
+      }
+      db.weight=db.weight.filter(e=>!((e.date||dateKeyFromTs(e.ts))==='2026-08-22'&&e.val===62.3));
+      db.sprints=db.sprints.filter(s=>!(s.name==='Sprint 4'&&s.startDate==='2026-08-20'&&s.endDate==='2026-09-02'&&s.theme==='Rebuild consistency'));
+      await idbPut(db);
+    }
+  }catch(err){ console.warn('IndexedDB unavailable; using in-memory legacy data.',err); }
+  renderAll();
+}
 
 function calcGoals(){
   const p = db.profile;
@@ -376,15 +585,240 @@ const $ = s => document.querySelector(s);
 const today = () => new Date().toLocaleDateString('en-CA', {timeZone:'America/New_York'});
 const fday  = t => new Date(t).toLocaleDateString(undefined,{month:'short',day:'numeric'});
 const numv  = s => { const v=parseFloat($(s).value); return isNaN(v)?0:v; };
+const maybeNum = s => { const v=parseFloat($(s).value); return isNaN(v)?null:v; };
+const esc = value => String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+function switchTab(name){
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.p===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='p-'+name));
+  if(name==='today') renderToday();
+  if(name==='progress') renderProgress();
+  if(name==='plan') renderPlan();
+  if(name==='history') renderHistory();
+  window.scrollTo(0,0);
+}
 
 /* tabs */
 $('#nav').addEventListener('click', e=>{
   const b=e.target.closest('button'); if(!b) return;
-  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));
-  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='p-'+b.dataset.p));
-  if(b.dataset.p==='trends') drawChart();
-  if(b.dataset.p==='history') renderHistory();
+  switchTab(b.dataset.p);
 });
+
+function parseDate(date){ return new Date(date+'T12:00:00'); }
+function addDays(date,n){ const d=parseDate(date); d.setDate(d.getDate()+n); return d.toLocaleDateString('en-CA'); }
+function daysBetween(a,b){ return Math.round((parseDate(b)-parseDate(a))/86400000); }
+function datesBetween(start,end){
+  const out=[]; if(!start||!end||start>end) return out;
+  for(let d=start;d<=end;d=addDays(d,1)) out.push(d);
+  return out;
+}
+function nutritionForDate(date){
+  return db.food.filter(e=>e.date===date).reduce((a,e)=>({
+    k:a.k+(e.kcal||0),p:a.p+(e.p||0),c:a.c+(e.c||0),f:a.f+(e.f||0)
+  }),{k:0,p:0,c:0,f:0});
+}
+function currentSprint(date=today()){
+  return db.sprints.find(s=>s.startDate<=date&&s.endDate>=date)||null;
+}
+function latestSprint(){ return db.sprints.slice().sort((a,b)=>b.startDate.localeCompare(a.startDate))[0]||null; }
+function targetAverage(target,fallback=null){
+  if(typeof target==='number') return target;
+  if(target?.average!=null) return target.average;
+  if(target?.min!=null&&target?.max!=null) return (target.min+target.max)/2;
+  return target?.max??target?.min??fallback;
+}
+function effectiveTargets(date=today()){
+  const t=currentSprint(date)?.targets||{};
+  return {kcal:targetAverage(t.calories,db.goalKcal),protein:t.protein||db.goalProtein,
+    steps:t.steps||null,sleep:targetAverage(t.sleep)};
+}
+function avg(values){ const clean=values.filter(v=>v!=null&&!isNaN(v)); return clean.length?clean.reduce((a,v)=>a+v,0)/clean.length:null; }
+function metricCard(value,label){ return `<div class="metric"><b>${esc(value)}</b><span>${esc(label)}</span></div>`; }
+
+function sprintStats(sprint,rangeStart=sprint?.startDate,rangeEnd=sprint?.endDate){
+  if(!sprint) return null;
+  const start=rangeStart<sprint.startDate?sprint.startDate:rangeStart;
+  const sprintEnd=rangeEnd>sprint.endDate?sprint.endDate:rangeEnd;
+  const end=sprintEnd>today()?today():sprintEnd;
+  const dates=datesBetween(start,end);
+  const nutritionDates=dates.filter(d=>db.food.some(e=>e.date===d));
+  const nutrients=nutritionDates.map(nutritionForDate);
+  const logs=dates.map(d=>({date:d,...(db.dailyLogs[d]||{})}));
+  const weights=logs.filter(l=>l.weightKg!=null);
+  const week1=weights.filter(l=>l.date<addDays(sprint.startDate,7)).map(l=>l.weightKg);
+  const week2=weights.filter(l=>l.date>=addDays(sprint.startDate,7)&&l.date<addDays(sprint.startDate,14)).map(l=>l.weightKg);
+  const targets=sprint.targets||{};
+  return {
+    days:dates.length,
+    avgCalories:avg(nutrients.map(n=>n.k)),avgProtein:avg(nutrients.map(n=>n.p)),
+    proteinDays:nutrients.filter(n=>n.p>=(targets.protein||db.goalProtein)).length,
+    strength:logs.filter(l=>l.strength).length,cardio:logs.filter(l=>(l.cardioMinutes||0)>0).length,
+    cardioMinutes:logs.reduce((a,l)=>a+(l.cardioMinutes||0),0),posture:logs.filter(l=>l.posture).length,
+    core:logs.filter(l=>l.core).length,avgSteps:avg(logs.map(l=>l.steps)),
+    stepDays:logs.filter(l=>targets.steps&&l.steps>=targets.steps).length,avgSleep:avg(logs.map(l=>l.sleepHours)),
+    avgWeight:avg(weights.map(l=>l.weightKg)),week1Weight:avg(week1),week2Weight:avg(week2),
+    weightChange:weights.length>1?weights[weights.length-1].weightKg-weights[0].weightKg:null
+  };
+}
+function fmt(value,digits=0,suffix=''){ return value==null?'--':value.toFixed(digits)+suffix; }
+
+function renderToday(){
+  const date=today(), sprint=currentSprint(date), log=db.dailyLogs[date]||{}, n=nutritionForDate(date), targets=effectiveTargets(date);
+  $('#today-date').textContent=parseDate(date).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  $('#today-sprint').textContent=sprint
+    ? `${sprint.name} · Day ${daysBetween(sprint.startDate,date)+1} of ${daysBetween(sprint.startDate,sprint.endDate)+1}${sprint.theme?' · '+sprint.theme:''}`
+    : 'No active sprint · set one in Plan';
+  $('#today-kcal').textContent=Math.round(n.k).toLocaleString();
+  $('#today-kcal-goal').textContent=targets.kcal.toLocaleString();
+  $('#today-protein').textContent=Math.round(n.p);
+  $('#today-protein-goal').textContent=targets.protein;
+  $('#today-carbs').textContent=Math.round(n.c); $('#today-fat').textContent=Math.round(n.f);
+  $('#today-kcal-bar').style.width=Math.min(100,n.k/targets.kcal*100)+'%';
+  $('#today-kcal-bar').style.background=n.k>targets.kcal?'var(--over)':'var(--accent)';
+  $('#today-protein-bar').style.width=Math.min(100,n.p/targets.protein*100)+'%';
+  document.querySelectorAll('[data-habit]').forEach(b=>b.classList.toggle('active',!!log[b.dataset.habit]));
+  $('#d-cardio-minutes').value=log.cardioMinutes??''; $('#d-cardio-type').value=log.cardioType||'';
+  $('#d-steps').value=log.steps??''; $('#d-sleep').value=log.sleepHours??'';
+  $('#d-weight').value=log.weightKg??''; $('#d-notes').value=log.notes||'';
+}
+function saveDaily(){
+  const date=today(), previous=db.dailyLogs[date]||{};
+  const weightKg=maybeNum('#d-weight');
+  db.dailyLogs[date]={...previous,
+    posture:document.querySelector('[data-habit="posture"]').classList.contains('active'),
+    core:document.querySelector('[data-habit="core"]').classList.contains('active'),
+    strength:document.querySelector('[data-habit="strength"]').classList.contains('active'),
+    cardioMinutes:maybeNum('#d-cardio-minutes'),cardioType:$('#d-cardio-type').value,
+    steps:maybeNum('#d-steps'),sleepHours:maybeNum('#d-sleep'),weightKg,notes:$('#d-notes').value.trim()
+  };
+  const existing=db.weight.find(e=>(e.date||dateKeyFromTs(e.ts))===date);
+  if(weightKg!=null){ if(existing){ existing.val=weightKg; existing.date=date; } else db.weight.push({val:weightKg,date,ts:Date.now()}); }
+  else if(existing) db.weight=db.weight.filter(e=>e!==existing);
+  save();
+  $('#daily-save-status').textContent='Saved';
+  clearTimeout(saveDaily.statusTimer); saveDaily.statusTimer=setTimeout(()=>$('#daily-save-status').textContent='',1200);
+}
+$('#today-log-food').onclick=()=>switchTab('food');
+$('#habit-grid').onclick=e=>{ const b=e.target.closest('[data-habit]'); if(!b) return; b.classList.toggle('active'); saveDaily(); };
+['#d-cardio-minutes','#d-cardio-type','#d-steps','#d-sleep','#d-weight'].forEach(s=>$(s).addEventListener('change',saveDaily));
+let notesTimer;
+$('#d-notes').addEventListener('input',()=>{ clearTimeout(notesTimer); notesTimer=setTimeout(saveDaily,450); });
+
+function sprintFromForm(){
+  const startDate=$('#sp-start').value,endDate=$('#sp-end').value;
+  if(!$('#sp-name').value.trim()||!startDate||!endDate||startDate>endDate) return null;
+  return {id:$('#sp-name').dataset.id||('sprint-'+Date.now()),name:$('#sp-name').value.trim(),startDate,endDate,
+    theme:$('#sp-theme').value.trim(),targets:{
+      calories:{average:maybeNum('#sp-cal-average')},protein:maybeNum('#sp-protein'),
+      fat:{average:maybeNum('#sp-fat-average')},strengthSessions:maybeNum('#sp-strength'),
+      cardioSessions:maybeNum('#sp-cardio-sessions'),cardioMinutes:maybeNum('#sp-cardio-minutes'),
+      postureDays:maybeNum('#sp-posture'),coreDays:maybeNum('#sp-core'),steps:maybeNum('#sp-step'),
+      sleep:{average:maybeNum('#sp-sleep-average')}
+    }};
+}
+function fillSprintForm(sprint){
+  const s=sprint||{name:'',startDate:today(),endDate:addDays(today(),13),theme:'',targets:{}}; const t=s.targets||{};
+  $('#sp-name').dataset.id=sprint?.id||''; $('#sp-name').value=s.name||'';
+  $('#sp-start').value=s.startDate||today(); $('#sp-end').value=s.endDate||addDays(today(),13); $('#sp-theme').value=s.theme||'';
+  const values={'#sp-cal-average':targetAverage(t.calories,db.goalKcal),
+    '#sp-protein':t.protein??db.goalProtein,'#sp-fat-average':targetAverage(t.fat),
+    '#sp-strength':t.strengthSessions,'#sp-cardio-sessions':t.cardioSessions,'#sp-cardio-minutes':t.cardioMinutes,
+    '#sp-posture':t.postureDays,'#sp-core':t.coreDays,'#sp-step':t.steps,'#sp-sleep-average':targetAverage(t.sleep)};
+  Object.entries(values).forEach(([sel,value])=>$(sel).value=value??'');
+}
+function sprintDetailsHtml(sprint,review=false){
+  const t=sprint.targets||{}, duration=daysBetween(sprint.startDate,sprint.endDate)+1;
+  const rows=[
+    ['Dates',`${sprint.startDate} to ${sprint.endDate} · ${duration} days`],
+    ['Focus',sprint.theme||'--'],['Average calories',fmt(targetAverage(t.calories))],
+    ['Protein minimum',fmt(t.protein,0,'g')],['Average fat',fmt(targetAverage(t.fat),0,'g')],
+    ['Strength sessions',fmt(t.strengthSessions)],['Cardio sessions',fmt(t.cardioSessions)],
+    ['Cardio minutes',fmt(t.cardioMinutes,0,' min/session')],['Posture days',fmt(t.postureDays)],
+    ['Core days',fmt(t.coreDays)],['Daily steps',fmt(t.steps)],['Average sleep',fmt(targetAverage(t.sleep),1,' hours')]
+  ];
+  return `${review?'':`<div class="commit-banner">Committed sprint · Day ${daysBetween(sprint.startDate,today())+1} of ${duration}</div>`}
+    <h3 style="font-size:20px;margin:0 0 14px;">${esc(sprint.name)}</h3>
+    <div class="detail-list">${rows.map(([label,value])=>`<div class="detail-row"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join('')}</div>`;
+}
+let pendingSprint=null;
+function openSprintBuilder(sprint=null){
+  pendingSprint=null; fillSprintForm(sprint);
+  $('#sprint-modal-title').textContent=sprint?'Edit sprint':'Build your sprint';
+  $('#sprint-form-view').style.display=''; $('#sprint-review-view').style.display='none';
+  $('#sprint-save-status').textContent=''; $('#sprint-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeSprintBuilder(){
+  pendingSprint=null; $('#sprint-modal').classList.remove('open'); document.body.style.overflow='';
+}
+$('#start-sprint').onclick=()=>openSprintBuilder();
+$('#close-sprint-modal').onclick=closeSprintBuilder;
+$('#sp-save').onclick=()=>{
+  const sprint=sprintFromForm();
+  if(!sprint){ alert('Add a sprint name and valid start and end dates.'); return; }
+  const overlap=db.sprints.find(s=>s.id!==sprint.id&&s.startDate<=sprint.endDate&&s.endDate>=sprint.startDate);
+  if(overlap){ alert(`These dates overlap with ${overlap.name}. Choose dates outside that sprint.`); return; }
+  const existing=db.sprints.find(s=>s.id===sprint.id);
+  pendingSprint={...sprint,committedAt:existing?.committedAt||null,createdAt:existing?.createdAt||Date.now()};
+  $('#sprint-review').innerHTML=sprintDetailsHtml(pendingSprint,true);
+  $('#sprint-modal-title').textContent='Review your sprint';
+  $('#sprint-form-view').style.display='none'; $('#sprint-review-view').style.display='';
+};
+$('#sp-review-back').onclick=()=>{
+  $('#sprint-modal-title').textContent=pendingSprint?.committedAt?'Edit sprint':'Build your sprint';
+  $('#sprint-form-view').style.display=''; $('#sprint-review-view').style.display='none';
+};
+$('#sp-commit').onclick=()=>{
+  if(!pendingSprint) return;
+  const committed={...pendingSprint,committed:true,committedAt:pendingSprint.committedAt||Date.now(),updatedAt:Date.now()};
+  const i=db.sprints.findIndex(s=>s.id===committed.id);
+  if(i>=0) db.sprints[i]=committed; else db.sprints.push(committed);
+  db.goalKcal=targetAverage(committed.targets.calories,db.goalKcal); db.goalProtein=committed.targets.protein||db.goalProtein;
+  save(); closeSprintBuilder(); renderToday(); renderProgress(); renderPlan();
+};
+
+function renderPlan(){
+  const sprint=currentSprint()||null;
+  $('#plan-empty').style.display=sprint?'none':'';
+  $('#plan-current').style.display=sprint?'':'none';
+  $('#weekly-card').style.display=sprint?'':'none';
+  if(sprint){
+    $('#plan-current').innerHTML=sprintDetailsHtml(sprint)+
+      '<button class="btn ghost" id="edit-committed-sprint" style="margin-top:16px;">Edit sprint</button>';
+  }
+  const weekStart=addDays(today(),-6), stats=sprint?sprintStats(sprint,weekStart,today()):null;
+  const previous=sprint?sprintStats(sprint,addDays(weekStart,-7),addDays(weekStart,-1)):null;
+  const weeklyChange=stats?.avgWeight!=null&&previous?.avgWeight!=null?stats.avgWeight-previous.avgWeight:null;
+  $('#weekly-metrics').innerHTML=stats?[
+    metricCard(fmt(stats.avgWeight,1,' kg'),'Average weight'),metricCard(fmt(weeklyChange,1,' kg'),'Change from previous week'),
+    metricCard(fmt(stats.avgCalories),'Average calories'),
+    metricCard(fmt(stats.avgProtein,0,'g'),'Average protein'),metricCard(stats.proteinDays,'Protein-target days'),
+    metricCard(stats.strength,'Strength sessions'),metricCard(stats.cardio,'Cardio sessions'),
+    metricCard(stats.posture+'/'+stats.days,'Posture adherence'),metricCard(stats.core+'/'+stats.days,'Core adherence'),
+    metricCard(fmt(stats.avgSteps),'Average steps'),metricCard(fmt(stats.avgSleep,1,'h'),'Average sleep')
+  ].join(''):'<div class="empty span-2">Create an active sprint to calculate this week.</div>';
+  const sprints=db.sprints.slice().sort((a,b)=>b.startDate.localeCompare(a.startDate)).filter(s=>s.id!==sprint?.id);
+  const checks=db.checkIns.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  const sprintHtml=sprints.length?sprints.map(s=>{
+    const m=sprintStats(s);
+    return `<div class="item"><div><b>${esc(s.name)}</b><div class="sub">${esc(s.startDate)} to ${esc(s.endDate)}${s.theme?' · '+esc(s.theme):''}</div>
+      <div class="sub">${fmt(m.avgCalories)} avg kcal · ${fmt(m.avgProtein,0,'g')} avg protein · ${fmt(m.weightChange,1,' kg')} weight change</div></div></div>`;
+  }).join(''):'';
+  const checkHtml=checks.length?checks.map(c=>`<div class="checkin"><b>${esc(c.sprintName)} · ${esc(c.weekStart)}</b><div class="sub">${esc(c.answers.adjustment||'No adjustment noted.')}</div></div>`).join(''):'';
+  $('#plan-archive').innerHTML=sprintHtml+checkHtml||'<div class="empty">No previous sprints or check-ins yet.</div>';
+}
+$('#plan-current').onclick=e=>{
+  if(!e.target.closest('#edit-committed-sprint')) return;
+  const sprint=currentSprint(); if(!sprint) return;
+  if(confirm('You have already committed to this sprint. Are you sure you want to make changes?')) openSprintBuilder(sprint);
+};
+$('#ci-save').onclick=()=>{
+  const sprint=currentSprint(); if(!sprint){ alert('Create an active sprint first.'); return; }
+  const weekStart=addDays(today(),-6), record={id:sprint.id+'-'+weekStart,sprintId:sprint.id,sprintName:sprint.name,
+    weekStart,weekEnd:today(),createdAt:Date.now(),stats:sprintStats(sprint,weekStart,today()),answers:{
+      hiddenCalories:$('#ci-hidden').value.trim(),easy:$('#ci-easy').value.trim(),hard:$('#ci-hard').value.trim(),adjustment:$('#ci-adjust').value.trim()}};
+  const i=db.checkIns.findIndex(c=>c.id===record.id); if(i>=0) db.checkIns[i]=record; else db.checkIns.push(record);
+  save(); ['#ci-hidden','#ci-easy','#ci-hard','#ci-adjust'].forEach(s=>$(s).value=''); renderPlan();
+};
 
 /* settings */
 function syncSegs(goalVal, sexVal){
@@ -606,9 +1040,10 @@ function renderFood(){
 
   const todays=db.food.filter(e=>e.date===today());
   $('#f-list').innerHTML = todays.length ? todays.map(e=>
-    `<div class="item"><div><div>${e.name}</div><div class="sub">${Math.round(e.kcal)} kcal · ${Math.round(e.p||0)}P</div></div>
+    `<div class="item"><div><div>${esc(e.name)}</div><div class="sub">${Math.round(e.kcal)} kcal · ${Math.round(e.p||0)}P</div></div>
      <button class="del" data-ts="${e.ts}">×</button></div>`).reverse().join('')
     : '<div class="empty">No food logged today.</div>';
+  renderToday();
 }
 $('#f-list').onclick=e=>{ const d=e.target.closest('.del'); if(!d) return;
   db.food=db.food.filter(x=>x.ts!=d.dataset.ts); save(); renderFood(); };
@@ -721,34 +1156,47 @@ $('#f-save').onclick=()=>{
   setTimeout(()=>btn.textContent='Save',1500);
 };
 
-/* weight */
-function renderWeight(){
-  $('#w-list').innerHTML = db.weight.length ? db.weight.slice().reverse().map(e=>
-    `<div class="item"><span class="sub">${fday(e.ts)}</span><div><b>${e.val.toFixed(1)}</b>
-     <button class="del" data-ts="${e.ts}">×</button></div></div>`).join('')
-    : '<div class="empty">No weigh-ins yet.</div>';
-}
-$('#w-add').onclick=()=>{ const v=parseFloat($('#w-val').value); if(isNaN(v)) return;
-  db.weight.push({val:v,ts:Date.now()}); save(); $('#w-val').value=''; renderWeight(); };
-$('#w-list').onclick=e=>{ const d=e.target.closest('.del'); if(!d) return;
-  db.weight=db.weight.filter(x=>x.ts!=d.dataset.ts); save(); renderWeight(); };
-
-/* body */
+/* measurements */
 function renderBody(){
-  $('#b-list').innerHTML = db.body.length ? db.body.slice().reverse().map(e=>{
-    const parts=[['Waist',e.waist],['Hips',e.hip],['Arm',e.arm],['Thigh',e.thigh]]
+  $('#b-list').innerHTML = db.measurements.length ? db.measurements.slice().reverse().map(e=>{
+    const parts=[['Waist',e.waist],['Navel',e.navel],['Hips',e.hip],['Chest',e.chest],
+      ['L arm',e.leftArm??e.arm],['R arm',e.rightArm],['L thigh',e.leftThigh??e.thigh],['R thigh',e.rightThigh]]
       .filter(p=>p[1]!=null).map(p=>`${p[0]} ${p[1]}`).join(' · ');
     const bfBadge = e.bf!=null ? `<span style="color:var(--accent);font-weight:600"> · ${e.bf}% BF</span>` : '';
-    return `<div class="item"><div><div class="sub">${fday(e.ts)}${bfBadge}</div><div>${parts||'—'}</div></div>
+    return `<div class="item"><div><div class="sub">${fday(e.ts)}${bfBadge}</div><div>${esc(parts||'--')}</div></div>
      <button class="del" data-ts="${e.ts}">×</button></div>`; }).join('')
     : '<div class="empty">No measurements yet.</div>';
 }
 $('#b-add').onclick=()=>{ const n=s=>{const v=parseFloat($(s).value);return isNaN(v)?null:v;};
-  const r={waist:n('#b-waist'),hip:n('#b-hip'),arm:n('#b-arm'),thigh:n('#b-thigh'),bf:n('#b-bf'),ts:Date.now()};
-  if([r.waist,r.hip,r.arm,r.thigh,r.bf].every(v=>v==null)) return;
-  db.body.push(r); save(); ['#b-waist','#b-hip','#b-arm','#b-thigh','#b-bf'].forEach(s=>$(s).value=''); renderBody(); };
+  const r={bf:n('#b-bf'),waist:n('#b-waist'),navel:n('#b-navel'),hip:n('#b-hip'),chest:n('#b-chest'),
+    leftArm:n('#b-left-arm'),rightArm:n('#b-right-arm'),leftThigh:n('#b-left-thigh'),rightThigh:n('#b-right-thigh'),ts:Date.now(),date:today()};
+  if(Object.entries(r).filter(([k])=>!['ts','date'].includes(k)).every(([,v])=>v==null)) return;
+  db.measurements.push(r); db.body=db.measurements.map(e=>({...e})); save();
+  ['#b-bf','#b-waist','#b-navel','#b-hip','#b-chest','#b-left-arm','#b-right-arm','#b-left-thigh','#b-right-thigh'].forEach(s=>$(s).value='');
+  renderBody(); };
 $('#b-list').onclick=e=>{ const d=e.target.closest('.del'); if(!d) return;
-  db.body=db.body.filter(x=>x.ts!=d.dataset.ts); save(); renderBody(); };
+  db.measurements=db.measurements.filter(x=>x.ts!=d.dataset.ts); db.body=db.measurements.map(e=>({...e})); save(); renderBody(); };
+
+function renderProgress(){
+  const sprint=currentSprint()||latestSprint();
+  if(!sprint){
+    $('#progress-period').textContent='Create a sprint in Plan to see your summary.';
+    $('#sprint-metrics').innerHTML='<div class="empty span-2">No sprint data yet.</div>';
+  }else{
+    const s=sprintStats(sprint),t=sprint.targets||{};
+    $('#progress-period').textContent=`${sprint.name} · ${sprint.startDate} to ${sprint.endDate}`;
+    $('#sprint-metrics').innerHTML=[
+      metricCard(fmt(s.avgCalories),'Average calories'),metricCard(fmt(s.avgProtein,0,'g'),'Average protein'),
+      metricCard(`${s.proteinDays}/${s.days}`,'Protein-target days'),metricCard(`${s.strength}/${t.strengthSessions??'--'}`,'Strength sessions'),
+      metricCard(`${s.cardio}/${t.cardioSessions??'--'}`,'Cardio sessions'),metricCard(s.cardioMinutes+' min','Total cardio'),
+      metricCard(`${s.posture}/${t.postureDays??s.days}`,'Posture days'),metricCard(`${s.core}/${t.coreDays??s.days}`,'Core days'),
+      metricCard(fmt(s.avgSteps),'Average steps'),metricCard(s.stepDays,'Step-goal days'),
+      metricCard(fmt(s.avgSleep,1,'h'),'Average sleep'),metricCard(fmt(s.weightChange,1,' kg'),'Weight change'),
+      metricCard(fmt(s.week1Weight,1,' kg'),'Week 1 avg weight'),metricCard(fmt(s.week2Weight,1,' kg'),'Week 2 avg weight')
+    ].join('');
+  }
+  renderBody(); drawChart();
+}
 
 /* history */
 function renderHistory(){
@@ -759,48 +1207,68 @@ function renderHistory(){
     byDate[e.date].k+=(e.kcal||0); byDate[e.date].p+=(e.p||0);
     byDate[e.date].c+=(e.c||0);    byDate[e.date].f+=(e.f||0);
   });
+  Object.keys(db.dailyLogs).forEach(d=>{ if(!byDate[d]) byDate[d]={items:[],k:0,p:0,c:0,f:0}; });
   const dates=Object.keys(byDate).sort().reverse();
-  $('#hist-list').innerHTML=dates.length
+  const dayRows=dates.length
     ? dates.map(d=>{
-        const r=byDate[d];
+        const r=byDate[d],log=db.dailyLogs[d]||{};
         const label=new Date(d+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+        const detail=[Math.round(r.k)+' kcal',Math.round(r.p)+'P',log.steps!=null?log.steps.toLocaleString()+' steps':null,
+          log.weightKg!=null?log.weightKg+' kg':null].filter(Boolean).join(' · ');
         return `<div class="item" data-date="${d}" style="cursor:pointer;">
           <div style="flex:1;min-width:0;">
             <div style="font-weight:600;">${label}</div>
-            <div class="sub">${Math.round(r.k)} kcal · ${Math.round(r.p)}P · ${Math.round(r.c)}C · ${Math.round(r.f)}F</div>
+            <div class="sub">${detail}</div>
           </div>
-          <button class="del" data-deldate="${d}" style="font-size:16px;margin-right:4px;" title="Delete day">×</button>
+          <button class="del" data-deldate="${d}" style="font-size:16px;margin-right:4px;" title="Delete daily record">×</button>
           <span style="color:var(--muted);font-size:20px;">›</span>
         </div>`;
       }).join('')
-    : '<div class="empty">No food logged yet.</div>';
+    : '<div class="empty">No entries yet.</div>';
+  const sprintArchive=db.sprints.length?`<div class="section-title">Sprint summaries</div>${db.sprints.slice().sort((a,b)=>b.startDate.localeCompare(a.startDate)).map(s=>{
+    const m=sprintStats(s); return `<div class="item"><div><b>${esc(s.name)}</b><div class="sub">${fmt(m.avgCalories)} avg kcal · ${fmt(m.avgProtein,0,'g')} protein · ${fmt(m.weightChange,1,' kg')} weight change</div></div></div>`;
+  }).join('')}`:'';
+  const checkInArchive=db.checkIns.length?`<div class="section-title">Check-ins</div>${db.checkIns.slice().sort((a,b)=>b.createdAt-a.createdAt).map(c=>
+    `<div class="item"><div><b>${esc(c.sprintName)}</b><div class="sub">Week ending ${esc(c.weekEnd)} · ${esc(c.answers.adjustment||'No adjustment noted.')}</div></div></div>`).join('')}`:'';
+  $('#hist-list').innerHTML=dayRows+sprintArchive+checkInArchive;
 }
 $('#hist-list').onclick=e=>{
   const del=e.target.closest('[data-deldate]');
   if(del){
     const date=del.dataset.deldate;
     const label=new Date(date+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
-    if(!confirm(`Delete all food logged on ${label}? This cannot be undone.`)) return;
-    db.food=db.food.filter(e=>e.date!==date); save(); renderHistory(); renderFood();
+    if(!confirm(`Delete the full record for ${label}? This cannot be undone.`)) return;
+    db.food=db.food.filter(e=>e.date!==date); delete db.dailyLogs[date];
+    db.weight=db.weight.filter(e=>(e.date||dateKeyFromTs(e.ts))!==date); save(); renderHistory(); renderFood();
     return;
   }
   const row=e.target.closest('[data-date]'); if(!row) return;
   const date=row.dataset.date;
-  const items=db.food.filter(e=>e.date===date);
+  const items=db.food.filter(e=>e.date===date),log=db.dailyLogs[date]||{};
   const tot=items.reduce((a,e)=>({k:a.k+(e.kcal||0),p:a.p+(e.p||0),c:a.c+(e.c||0),f:a.f+(e.f||0)}),{k:0,p:0,c:0,f:0});
   $('#hist-modal-title').textContent=new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'long',day:'numeric',year:'numeric'});
   $('#hist-modal-body').innerHTML=
-    items.map(e=>
+    (items.length?items.map(e=>
       `<div class="item">
         <div>
-          <div style="font-size:14px;">${e.name}</div>
+          <div style="font-size:14px;">${esc(e.name)}</div>
           <div class="sub">${e.kcal||0} kcal · ${e.p||0}P · ${e.c||0}C · ${e.f||0}F</div>
         </div>
       </div>`
-    ).join('')
+    ).join(''):'<div class="empty">No food logged.</div>')
     +`<div style="margin-top:16px;padding:12px 14px;background:var(--accent-soft);border-radius:10px;">
         <b>Total</b>
         <div class="sub" style="margin-top:2px;">${Math.round(tot.k)} kcal · ${Math.round(tot.p)}P · ${Math.round(tot.c)}C · ${Math.round(tot.f)}F</div>
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <div class="macro-row"><span>Posture</span><b>${log.posture?'Done':'--'}</b></div>
+        <div class="macro-row"><span>Core</span><b>${log.core?'Done':'--'}</b></div>
+        <div class="macro-row"><span>Strength</span><b>${log.strength?'Done':'--'}</b></div>
+        <div class="macro-row"><span>Cardio</span><b>${log.cardioMinutes?log.cardioMinutes+' min'+(log.cardioType?' · '+esc(log.cardioType):''):'--'}</b></div>
+        <div class="macro-row"><span>Steps</span><b>${log.steps?.toLocaleString()||'--'}</b></div>
+        <div class="macro-row"><span>Sleep</span><b>${log.sleepHours!=null?log.sleepHours+' h':'--'}</b></div>
+        <div class="macro-row"><span>Weight</span><b>${log.weightKg!=null?log.weightKg+' kg':'--'}</b></div>
+        ${log.notes?`<div class="section-title">Notes</div><div>${esc(log.notes)}</div>`:''}
       </div>`;
   $('#hist-modal').style.display='block';
 };
@@ -811,29 +1279,38 @@ let chart, metric='weight';
 $('#seg').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; metric=b.dataset.m;
   document.querySelectorAll('#seg button').forEach(x=>x.classList.toggle('active',x===b)); drawChart(); };
 function dayRoll(k){ const by={}; db.food.forEach(e=>by[e.date]=(by[e.date]||0)+(e[k]||0));
-  return Object.keys(by).sort().map(d=>({x:new Date(d).getTime(),y:Math.round(by[d])})); }
+  return Object.keys(by).sort().map(d=>({date:d,x:parseDate(d).getTime(),y:Math.round(by[d])})); }
 function series(){
-  if(metric==='weight') return db.weight.map(e=>({x:e.ts,y:e.val}));
-  if(metric==='waist')  return db.body.filter(e=>e.waist!=null).map(e=>({x:e.ts,y:e.waist}));
-  if(metric==='bf')     return db.body.filter(e=>e.bf!=null).map(e=>({x:e.ts,y:e.bf}));
+  if(metric==='weight') return Object.entries(db.dailyLogs).filter(([,l])=>l.weightKg!=null)
+    .map(([date,l])=>({date,x:parseDate(date).getTime(),y:l.weightKg})).sort((a,b)=>a.x-b.x);
+  if(metric==='steps') return Object.entries(db.dailyLogs).filter(([,l])=>l.steps!=null)
+    .map(([date,l])=>({date,x:parseDate(date).getTime(),y:l.steps}));
+  if(metric==='sleep') return Object.entries(db.dailyLogs).filter(([,l])=>l.sleepHours!=null)
+    .map(([date,l])=>({date,x:parseDate(date).getTime(),y:l.sleepHours}));
   if(metric==='protein')return dayRoll('p');
   return dayRoll('kcal');
 }
 function drawChart(){
   const data=series().sort((a,b)=>a.x-b.x);
   $('#chart-empty').style.display=data.length?'none':'block';
+  if(!window.Chart) return;
   const css=getComputedStyle(document.documentElement);
   const accent=css.getPropertyValue('--accent').trim();
   if(chart) chart.destroy();
+  const datasets=[{label:metric==='weight'?'Daily weight':metric,data:data.map(p=>p.y),borderColor:accent,
+    backgroundColor:accent+'22',fill:metric!=='weight',tension:.3,pointRadius:3}];
+  if(metric==='weight') datasets.push({label:'7-day average',data:data.map((p,i)=>{
+    const start=addDays(p.date,-6); return avg(data.filter(q=>q.date>=start&&q.date<=p.date).map(q=>q.y));
+  }),borderColor:'#d1842f',backgroundColor:'transparent',borderWidth:3,tension:.35,pointRadius:0});
   chart=new Chart($('#chart'),{ type:'line',
     data:{ labels:data.map(p=>fday(p.x)),
-      datasets:[{ data:data.map(p=>p.y), borderColor:accent, backgroundColor:accent+'22',
-        fill:true, tension:.3, pointRadius:3 }] },
-    options:{ plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:false},
+      datasets },
+    options:{ plugins:{legend:{display:metric==='weight'}}, scales:{ y:{beginAtZero:false},
       x:{grid:{display:false}} }, maintainAspectRatio:false } });
 }
 
-renderChips(); renderSaved(); renderFood(); renderWeight(); renderBody(); renderHistory();
+function renderAll(){ renderChips(); renderSaved(); renderFood(); renderBody(); renderHistory(); renderPlan(); }
+initStorage();
 
 /* register service worker so the app works offline once installed */
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }

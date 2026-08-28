@@ -1,7 +1,7 @@
 {
-  "name": "Track — calories, weight & measurements",
+  "name": "Track — daily weight-loss dashboard",
   "short_name": "Track",
-  "description": "Personal calorie, macro, weight and body measurement tracker.",
+  "description": "A local-first daily dashboard for nutrition, habits, recovery, weight and measurements.",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
