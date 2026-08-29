@@ -80,11 +80,6 @@
   .item .edit{ background:none; border:1px solid var(--line); border-radius:6px; color:var(--muted); font-size:12px; cursor:pointer; padding:3px 8px; margin-right:4px; }
   .empty{ color:var(--muted); font-size:14px; text-align:center; padding:18px 0; }
 
-  .seg{ display:flex; gap:6px; margin-bottom:14px; }
-  .seg button{ flex:1; padding:8px; border:1px solid var(--line); background:var(--surface);
-               color:var(--muted); border-radius:8px; font-size:13px; cursor:pointer; }
-  .seg button.active{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent); font-weight:600; }
-
   /* settings sheet */
   .sheet{ position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:flex-end; z-index:20; }
   .sheet.open{ display:flex; }
@@ -259,22 +254,12 @@
   <section class="panel" id="p-progress">
     <div class="page-head"><h2>Progress</h2><p id="progress-period">Current sprint</p></div>
     <div class="card"><div class="metric-grid" id="sprint-metrics"></div></div>
-    <div class="seg" id="seg">
-      <button data-m="weight" class="active">Weight</button>
-      <button data-m="calories">Calories</button>
-      <button data-m="protein">Protein</button>
-      <button data-m="steps">Steps</button>
-      <button data-m="sleep">Sleep</button>
-    </div>
-    <div class="card"><canvas id="chart" height="220"></canvas>
-      <div class="empty" id="chart-empty">Log a few entries to see trends.</div>
-    </div>
     <div class="card">
       <h3 class="compact-title">Measurement checkpoint</h3>
       <div class="form-grid" style="margin-bottom:12px;">
         <input id="b-bf" type="number" inputmode="decimal" step="0.1" placeholder="Body fat %" />
         <input id="b-waist" type="number" inputmode="decimal" step="0.1" placeholder="Waist - narrowest" />
-        <input id="b-navel" type="number" inputmode="decimal" step="0.1" placeholder="Waist - navel" />
+        <input id="b-weight" type="number" inputmode="decimal" min="0" step="0.1" placeholder="Weight (kg)" />
         <input id="b-hip" type="number" inputmode="decimal" step="0.1" placeholder="Hips" />
         <input id="b-chest" type="number" inputmode="decimal" step="0.1" placeholder="Chest" />
         <input id="b-left-arm" type="number" inputmode="decimal" step="0.1" placeholder="Left arm" />
@@ -465,7 +450,6 @@
   <div id="saved-modal-list"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 /* IndexedDB is the active store. track.v1 remains a read-only migration source. */
 const KEY = 'track.v1';
@@ -1159,7 +1143,7 @@ $('#f-save').onclick=()=>{
 /* measurements */
 function renderBody(){
   $('#b-list').innerHTML = db.measurements.length ? db.measurements.slice().reverse().map(e=>{
-    const parts=[['Waist',e.waist],['Navel',e.navel],['Hips',e.hip],['Chest',e.chest],
+    const parts=[['Weight',e.weight!=null?`${e.weight} kg`:null],['Waist',e.waist],['Hips',e.hip],['Chest',e.chest],
       ['L arm',e.leftArm??e.arm],['R arm',e.rightArm],['L thigh',e.leftThigh??e.thigh],['R thigh',e.rightThigh]]
       .filter(p=>p[1]!=null).map(p=>`${p[0]} ${p[1]}`).join(' · ');
     const bfBadge = e.bf!=null ? `<span style="color:var(--accent);font-weight:600"> · ${e.bf}% BF</span>` : '';
@@ -1168,11 +1152,11 @@ function renderBody(){
     : '<div class="empty">No measurements yet.</div>';
 }
 $('#b-add').onclick=()=>{ const n=s=>{const v=parseFloat($(s).value);return isNaN(v)?null:v;};
-  const r={bf:n('#b-bf'),waist:n('#b-waist'),navel:n('#b-navel'),hip:n('#b-hip'),chest:n('#b-chest'),
+  const r={bf:n('#b-bf'),weight:n('#b-weight'),waist:n('#b-waist'),hip:n('#b-hip'),chest:n('#b-chest'),
     leftArm:n('#b-left-arm'),rightArm:n('#b-right-arm'),leftThigh:n('#b-left-thigh'),rightThigh:n('#b-right-thigh'),ts:Date.now(),date:today()};
   if(Object.entries(r).filter(([k])=>!['ts','date'].includes(k)).every(([,v])=>v==null)) return;
   db.measurements.push(r); db.body=db.measurements.map(e=>({...e})); save();
-  ['#b-bf','#b-waist','#b-navel','#b-hip','#b-chest','#b-left-arm','#b-right-arm','#b-left-thigh','#b-right-thigh'].forEach(s=>$(s).value='');
+  ['#b-bf','#b-weight','#b-waist','#b-hip','#b-chest','#b-left-arm','#b-right-arm','#b-left-thigh','#b-right-thigh'].forEach(s=>$(s).value='');
   renderBody(); };
 $('#b-list').onclick=e=>{ const d=e.target.closest('.del'); if(!d) return;
   db.measurements=db.measurements.filter(x=>x.ts!=d.dataset.ts); db.body=db.measurements.map(e=>({...e})); save(); renderBody(); };
@@ -1195,7 +1179,7 @@ function renderProgress(){
       metricCard(fmt(s.week1Weight,1,' kg'),'Week 1 avg weight'),metricCard(fmt(s.week2Weight,1,' kg'),'Week 2 avg weight')
     ].join('');
   }
-  renderBody(); drawChart();
+  renderBody();
 }
 
 /* history */
@@ -1246,6 +1230,7 @@ $('#hist-list').onclick=e=>{
   const date=row.dataset.date;
   const items=db.food.filter(e=>e.date===date),log=db.dailyLogs[date]||{};
   const tot=items.reduce((a,e)=>({k:a.k+(e.kcal||0),p:a.p+(e.p||0),c:a.c+(e.c||0),f:a.f+(e.f||0)}),{k:0,p:0,c:0,f:0});
+  $('#hist-modal').dataset.date=date;
   $('#hist-modal-title').textContent=new Date(date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'long',day:'numeric',year:'numeric'});
   $('#hist-modal-body').innerHTML=
     (items.length?items.map(e=>
@@ -1261,53 +1246,47 @@ $('#hist-list').onclick=e=>{
         <div class="sub" style="margin-top:2px;">${Math.round(tot.k)} kcal · ${Math.round(tot.p)}P · ${Math.round(tot.c)}C · ${Math.round(tot.f)}F</div>
       </div>
       <div class="card" style="margin-top:14px;">
-        <div class="macro-row"><span>Posture</span><b>${log.posture?'Done':'--'}</b></div>
-        <div class="macro-row"><span>Core</span><b>${log.core?'Done':'--'}</b></div>
-        <div class="macro-row"><span>Strength</span><b>${log.strength?'Done':'--'}</b></div>
-        <div class="macro-row"><span>Cardio</span><b>${log.cardioMinutes?log.cardioMinutes+' min'+(log.cardioType?' · '+esc(log.cardioType):''):'--'}</b></div>
-        <div class="macro-row"><span>Steps</span><b>${log.steps?.toLocaleString()||'--'}</b></div>
-        <div class="macro-row"><span>Sleep</span><b>${log.sleepHours!=null?log.sleepHours+' h':'--'}</b></div>
-        <div class="macro-row"><span>Weight</span><b>${log.weightKg!=null?log.weightKg+' kg':'--'}</b></div>
-        ${log.notes?`<div class="section-title">Notes</div><div>${esc(log.notes)}</div>`:''}
+        <h3 class="compact-title">Daily habits</h3>
+        <div class="habit-grid" id="hist-habits">
+          <button class="habit ${log.posture?'active':''}" data-history-habit="posture"><span>&#10003;</span>Posture</button>
+          <button class="habit ${log.core?'active':''}" data-history-habit="core"><span>&#10003;</span>Core</button>
+          <button class="habit ${log.strength?'active':''}" data-history-habit="strength"><span>&#10003;</span>Strength</button>
+        </div>
+        <div class="section-title">Cardio</div>
+        <div class="row">
+          <input id="hist-cardio-minutes" type="number" inputmode="numeric" min="0" placeholder="Minutes" value="${log.cardioMinutes??''}" />
+          <select id="hist-cardio-type">
+            ${['','Running','Walking','Elliptical','Cycling','Swimming','Other'].map(x=>`<option value="${x}" ${log.cardioType===x?'selected':''}>${x||'Type'}</option>`).join('')}
+          </select>
+        </div>
+        <div class="section-title">Movement &amp; recovery</div>
+        <div class="form-grid">
+          <div class="field" style="margin:0"><label>Steps</label><input id="hist-steps" type="number" inputmode="numeric" min="0" placeholder="0" value="${log.steps??''}" /></div>
+          <div class="field" style="margin:0"><label>Sleep (hours)</label><input id="hist-sleep" type="number" inputmode="decimal" min="0" max="24" step="0.1" placeholder="0" value="${log.sleepHours??''}" /></div>
+        </div>
+        <button class="btn" id="hist-save" style="margin-top:16px;">Save changes</button>
+        <div class="status" id="hist-save-status"></div>
       </div>`;
   $('#hist-modal').style.display='block';
 };
+$('#hist-modal-body').onclick=e=>{
+  const habit=e.target.closest('[data-history-habit]');
+  if(habit){ habit.classList.toggle('active'); return; }
+  if(!e.target.closest('#hist-save')) return;
+  const date=$('#hist-modal').dataset.date,previous=db.dailyLogs[date]||{};
+  const num=id=>{ const value=parseFloat($(id).value); return Number.isFinite(value)?value:null; };
+  db.dailyLogs[date]={...previous,
+    posture:$('[data-history-habit="posture"]').classList.contains('active'),
+    core:$('[data-history-habit="core"]').classList.contains('active'),
+    strength:$('[data-history-habit="strength"]').classList.contains('active'),
+    cardioMinutes:num('#hist-cardio-minutes'),cardioType:$('#hist-cardio-type').value,
+    steps:num('#hist-steps'),sleepHours:num('#hist-sleep')
+  };
+  save(); renderHistory();
+  if(date===today()) renderToday();
+  $('#hist-save-status').textContent='Saved';
+};
 $('#close-hist-modal').onclick=()=>$('#hist-modal').style.display='none';
-
-/* trends */
-let chart, metric='weight';
-$('#seg').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; metric=b.dataset.m;
-  document.querySelectorAll('#seg button').forEach(x=>x.classList.toggle('active',x===b)); drawChart(); };
-function dayRoll(k){ const by={}; db.food.forEach(e=>by[e.date]=(by[e.date]||0)+(e[k]||0));
-  return Object.keys(by).sort().map(d=>({date:d,x:parseDate(d).getTime(),y:Math.round(by[d])})); }
-function series(){
-  if(metric==='weight') return Object.entries(db.dailyLogs).filter(([,l])=>l.weightKg!=null)
-    .map(([date,l])=>({date,x:parseDate(date).getTime(),y:l.weightKg})).sort((a,b)=>a.x-b.x);
-  if(metric==='steps') return Object.entries(db.dailyLogs).filter(([,l])=>l.steps!=null)
-    .map(([date,l])=>({date,x:parseDate(date).getTime(),y:l.steps}));
-  if(metric==='sleep') return Object.entries(db.dailyLogs).filter(([,l])=>l.sleepHours!=null)
-    .map(([date,l])=>({date,x:parseDate(date).getTime(),y:l.sleepHours}));
-  if(metric==='protein')return dayRoll('p');
-  return dayRoll('kcal');
-}
-function drawChart(){
-  const data=series().sort((a,b)=>a.x-b.x);
-  $('#chart-empty').style.display=data.length?'none':'block';
-  if(!window.Chart) return;
-  const css=getComputedStyle(document.documentElement);
-  const accent=css.getPropertyValue('--accent').trim();
-  if(chart) chart.destroy();
-  const datasets=[{label:metric==='weight'?'Daily weight':metric,data:data.map(p=>p.y),borderColor:accent,
-    backgroundColor:accent+'22',fill:metric!=='weight',tension:.3,pointRadius:3}];
-  if(metric==='weight') datasets.push({label:'7-day average',data:data.map((p,i)=>{
-    const start=addDays(p.date,-6); return avg(data.filter(q=>q.date>=start&&q.date<=p.date).map(q=>q.y));
-  }),borderColor:'#d1842f',backgroundColor:'transparent',borderWidth:3,tension:.35,pointRadius:0});
-  chart=new Chart($('#chart'),{ type:'line',
-    data:{ labels:data.map(p=>fday(p.x)),
-      datasets },
-    options:{ plugins:{legend:{display:metric==='weight'}}, scales:{ y:{beginAtZero:false},
-      x:{grid:{display:false}} }, maintainAspectRatio:false } });
-}
 
 function renderAll(){ renderChips(); renderSaved(); renderFood(); renderBody(); renderHistory(); renderPlan(); }
 initStorage();
