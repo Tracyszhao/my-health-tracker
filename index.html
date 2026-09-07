@@ -416,7 +416,7 @@
     <div class="field"><label>Calories</label><input id="s-kcal" type="number" inputmode="numeric" /></div>
     <div class="field"><label>Protein (g)</label><input id="s-prot" type="number" inputmode="numeric" /></div>
     <button class="btn" id="s-save">Save</button>
-    <button class="btn ghost" id="s-export" style="margin-top:8px;">Export my data (JSON)</button>
+    <button class="btn ghost" id="s-export" style="margin-top:8px;">Export completed sprint</button>
   </div>
 </div>
 
@@ -425,13 +425,20 @@
     <button id="close-export-modal" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--ink);">←</button>
     <b style="font-size:18px;">Export Data</b>
   </div>
-  <p style="color:var(--muted);font-size:14px;margin:0 0 12px;">Choose which food days to include. Daily logs, measurements, sprints, check-ins, and settings are always exported.</p>
-  <div style="display:flex;gap:8px;margin-bottom:12px;">
-    <button class="btn ghost" id="export-sel-all" style="flex:1;padding:8px;">Select all</button>
-    <button class="btn ghost" id="export-desel-all" style="flex:1;padding:8px;">Deselect all</button>
+  <p style="color:var(--muted);font-size:14px;margin:0 0 16px;">Export all days from a finished sprint.</p>
+  <div class="field">
+    <label>Finished sprint</label>
+    <select id="export-sprint"></select>
   </div>
-  <div id="export-date-list" style="margin-bottom:16px;"></div>
-  <button class="btn" id="export-confirm">Export JSON</button>
+  <div class="field">
+    <label>Format</label>
+    <select id="export-format">
+      <option value="json">JSON</option>
+      <option value="csv">CSV</option>
+    </select>
+  </div>
+  <div class="empty" id="export-empty" style="display:none;">No finished sprints are available yet.</div>
+  <button class="btn" id="export-confirm">Export sprint</button>
 </div>
 
 <div id="hist-modal" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;padding:env(safe-area-inset-top,0) 16px 32px;">
@@ -784,8 +791,10 @@ function renderPlan(){
   const checks=db.checkIns.slice().sort((a,b)=>b.createdAt-a.createdAt);
   const sprintHtml=sprints.length?sprints.map(s=>{
     const m=sprintStats(s);
-    return `<div class="item"><div><b>${esc(s.name)}</b><div class="sub">${esc(s.startDate)} to ${esc(s.endDate)}${s.theme?' · '+esc(s.theme):''}</div>
-      <div class="sub">${fmt(m.avgCalories)} avg kcal · ${fmt(m.avgProtein,0,'g')} avg protein · ${fmt(m.weightChange,1,' kg')} weight change</div></div></div>`;
+    const canExport=s.endDate<today();
+    return `<div class="item"><div style="flex:1;min-width:0;"><b>${esc(s.name)}</b><div class="sub">${esc(s.startDate)} to ${esc(s.endDate)}${s.theme?' · '+esc(s.theme):''}</div>
+      <div class="sub">${fmt(m.avgCalories)} avg kcal · ${fmt(m.avgProtein,0,'g')} avg protein · ${fmt(m.weightChange,1,' kg')} weight change</div></div>
+      ${canExport?`<button class="edit" data-export-sprint="${esc(s.id)}">Export</button>`:''}</div>`;
   }).join(''):'';
   const checkHtml=checks.length?checks.map(c=>`<div class="checkin"><b>${esc(c.sprintName)} · ${esc(c.weekStart)}</b><div class="sub">${esc(c.answers.adjustment||'No adjustment noted.')}</div></div>`).join(''):'';
   $('#plan-archive').innerHTML=sprintHtml+checkHtml||'<div class="empty">No previous sprints or check-ins yet.</div>';
@@ -794,6 +803,10 @@ $('#plan-current').onclick=e=>{
   if(!e.target.closest('#edit-committed-sprint')) return;
   const sprint=currentSprint(); if(!sprint) return;
   if(confirm('You have already committed to this sprint. Are you sure you want to make changes?')) openSprintBuilder(sprint);
+};
+$('#plan-archive').onclick=e=>{
+  const button=e.target.closest('[data-export-sprint]');
+  if(button) openExportModal(button.dataset.exportSprint);
 };
 $('#ci-save').onclick=()=>{
   const sprint=currentSprint(); if(!sprint){ alert('Create an active sprint first.'); return; }
@@ -863,28 +876,58 @@ $('#s-save').onclick=()=>{
   db.goalProtein=numv('#s-prot')||140;
   save(); renderFood(); $('#sheet').classList.remove('open');
 };
-function openExportModal(){
-  const dates=[...new Set(db.food.map(e=>e.date))].sort().reverse();
-  $('#export-date-list').innerHTML=dates.length
-    ? dates.map(d=>{
-        const label=new Date(d+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
-        return `<label style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer;">
-          <input type="checkbox" data-export-date="${d}" checked style="width:18px;height:18px;accent-color:var(--accent);" />
-          <span style="font-size:14px;">${label}</span>
-        </label>`;
-      }).join('')
-    : '<div class="empty">No food logged yet.</div>';
+function finishedSprints(){
+  return db.sprints.filter(s=>s.endDate<today()).sort((a,b)=>b.endDate.localeCompare(a.endDate));
+}
+function openExportModal(sprintId=null){
+  const sprints=finishedSprints(),select=$('#export-sprint');
+  select.innerHTML=sprints.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} · ${esc(s.startDate)} to ${esc(s.endDate)}</option>`).join('');
+  if(sprintId&&sprints.some(s=>s.id===sprintId)) select.value=sprintId;
+  $('#export-empty').style.display=sprints.length?'none':'block';
+  select.closest('.field').style.display=sprints.length?'':'none';
+  $('#export-format').closest('.field').style.display=sprints.length?'':'none';
+  $('#export-confirm').style.display=sprints.length?'':'none';
   $('#export-modal').style.display='block';
+}
+function sprintDaysForExport(sprint){
+  return datesBetween(sprint.startDate,sprint.endDate).map(date=>{
+    const nutrition=nutritionForDate(date),log=db.dailyLogs[date]||{};
+    return {date,nutrition,log,foods:db.food.filter(e=>e.date===date)};
+  });
+}
+function downloadExport(content,type,filename){
+  const url=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function csvCell(value){
+  if(value==null) return '';
+  const text=String(value);
+  return /[",\r\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;
 }
 $('#s-export').onclick=openExportModal;
 $('#close-export-modal').onclick=()=>$('#export-modal').style.display='none';
-$('#export-sel-all').onclick=()=>document.querySelectorAll('[data-export-date]').forEach(c=>c.checked=true);
-$('#export-desel-all').onclick=()=>document.querySelectorAll('[data-export-date]').forEach(c=>c.checked=false);
 $('#export-confirm').onclick=()=>{
-  const sel=new Set([...document.querySelectorAll('[data-export-date]:checked')].map(c=>c.dataset.exportDate));
-  const out={...db,food:db.food.filter(e=>sel.has(e.date))};
-  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='track-data.json'; a.click();
+  const sprint=finishedSprints().find(s=>s.id===$('#export-sprint').value); if(!sprint) return;
+  const days=sprintDaysForExport(sprint),format=$('#export-format').value;
+  const base=(sprint.name||'sprint').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'sprint';
+  if(format==='csv'){
+    const headers=['Date','Calories','Protein','Posture','Core','Strength','Cardio type','Cardio minutes','Steps','Sleep','Weight'];
+    const rows=days.map(({date,nutrition,log})=>[
+      date,Number(nutrition.k.toFixed(2)),Number(nutrition.p.toFixed(2)),log.posture?'Yes':'No',log.core?'Yes':'No',
+      log.strength?'Yes':'No',log.cardioType||'',log.cardioMinutes,log.steps,log.sleepHours,log.weightKg
+    ].map(csvCell).join(','));
+    downloadExport([headers.join(','),...rows].join('\r\n'),'text/csv;charset=utf-8',`${base}.csv`);
+  }else{
+    const out={sprint:{id:sprint.id,name:sprint.name,startDate:sprint.startDate,endDate:sprint.endDate,
+      theme:sprint.theme||'',goals:sprint.targets||{}},days:days.map(({date,nutrition,log,foods})=>({
+        date,nutrition:{calories:nutrition.k,protein:nutrition.p,carbs:nutrition.c,fat:nutrition.f},
+        daily:{posture:!!log.posture,core:!!log.core,strength:!!log.strength,cardioType:log.cardioType||null,
+          cardioMinutes:log.cardioMinutes??null,steps:log.steps??null,sleep:log.sleepHours??null,
+          weight:log.weightKg??null,notes:log.notes||null},foods
+      }))};
+    downloadExport(JSON.stringify(out,null,2),'application/json',`${base}.json`);
+  }
   $('#export-modal').style.display='none';
 };
 
@@ -1197,7 +1240,13 @@ function renderHistory(){
     ? dates.map(d=>{
         const r=byDate[d],log=db.dailyLogs[d]||{};
         const label=new Date(d+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
-        const detail=[Math.round(r.k)+' kcal',Math.round(r.p)+'P',log.steps!=null?log.steps.toLocaleString()+' steps':null,
+        const steps=log.steps!=null
+          ? `${log.steps.toLocaleString()} steps`
+          : '<span style="color:var(--over);font-weight:600;">Steps missing</span>';
+        const sleep=log.sleepHours!=null
+          ? `${log.sleepHours} h sleep`
+          : '<span style="color:var(--over);font-weight:600;">Sleep missing</span>';
+        const detail=[Math.round(r.k)+' kcal',Math.round(r.p)+'P',steps,sleep,
           log.weightKg!=null?log.weightKg+' kg':null].filter(Boolean).join(' · ');
         return `<div class="item" data-date="${d}" style="cursor:pointer;">
           <div style="flex:1;min-width:0;">
